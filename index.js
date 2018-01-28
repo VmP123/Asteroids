@@ -37,11 +37,9 @@ class AnimatedGraphics {
 
 const STATES = {
 	MAINSCREEN: 1,
-	NEW_LEVEL_DEAD: 2,
-	NEW_LEVEL_ALIVE: 3,
-	ALIVE: 4,
-	DEAD: 5,
-	GAMEOVER: 6
+	ALIVE: 2,
+	DEAD: 3,
+	GAMEOVER: 4
 }
 
 const ASTEROID_TYPE = {
@@ -455,16 +453,18 @@ function gameLoop(delta) {
 	}
 }
 
-function mainScreen() {
+function mainScreen(createAsteroids) {
 	game.state = STATES.MAINSCREEN;
 	game.ship.visible = false;
 
 	removeTitleText();
-	removeAsteroids();
 
-	game.asteroids = createBigAsteroids(4);
-	for(var i = 0; i < game.asteroids.length; i++)
-		game.app.stage.addChild(game.asteroids[i]);
+	if (createAsteroids) {
+		removeAsteroids();
+		game.asteroids = createBigAsteroids(4);
+		for(var i = 0; i < game.asteroids.length; i++)
+			game.app.stage.addChild(game.asteroids[i]);
+	}
 
 	createCenterText('Press S to start')
 	createTitleText();
@@ -488,6 +488,8 @@ function startGame() {
 	game.ship.collisionPolygon.pos.x = x;
 	game.ship.collisionPolygon.pos.y = y;
 	game.ship.collisionPolygon.setAngle(rotation);
+
+	game.state = STATES.DEAD;
 
 	startLevel();
 }
@@ -628,7 +630,7 @@ function gameOver() {
 
 	game.timeline.push({
 		f: function () {
-			mainScreen();
+			mainScreen(false);
 		},
 		d:180
 	});
@@ -645,7 +647,7 @@ function init() {
 		game.app.stage.addChild(game.ship);
 		game.app.stage.addChild(game.ship.afterburner.getGraphics());
 
-		mainScreen();
+		mainScreen(true);
 
 		updateScore();
 		game.app.stage.addChildAt(game.texts.score);
