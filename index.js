@@ -36,10 +36,12 @@ class AnimatedGraphics {
 }
 
 const STATES = {
-	ALIVE: 1,
-	DEAD: 2,
-	GAMEOVER: 3,
-	MAINSCREEN: 4
+	MAINSCREEN: 1,
+	NEW_LEVEL_DEAD: 2,
+	NEW_LEVEL_ALIVE: 3,
+	ALIVE: 4,
+	DEAD: 5,
+	GAMEOVER: 6
 }
 
 const ASTEROID_TYPE = {
@@ -222,6 +224,18 @@ function createShip() {
 	});
 
 	return ship;
+}
+
+function respawnShip() {
+	game.ship.x = game.width / 2;
+	game.ship.y = game.height / 2;
+	game.ship.collisionPolygon.pos.x = game.ship.x
+	game.ship.collisionPolygon.pos.y = game.ship.y;
+	game.ship.rotation = 0;
+	game.ship.collisionPolygon.setAngle(0);
+
+	game.ship.visible = true;
+	game.state = STATES.ALIVE;
 }
 
 function warp(movingObject) {
@@ -428,12 +442,11 @@ function gameLoop(delta) {
 					game.emitter.resetPositionTracking();
 					game.emitter.emit = true;
 
-					updateScore(game.score.toString());
+					updateScore();
 
 					if (game.asteroids.length == 0) {
 						levelCompleted();
 					}
-
 
 					continue bulletsLoop;
 				}
@@ -446,6 +459,9 @@ function mainScreen() {
 	game.state = STATES.MAINSCREEN;
 	game.ship.visible = false;
 
+	removeTitleText();
+	removeAsteroids();
+
 	game.asteroids = createBigAsteroids(4);
 	for(var i = 0; i < game.asteroids.length; i++)
 		game.app.stage.addChild(game.asteroids[i]);
@@ -457,8 +473,22 @@ function mainScreen() {
 function startGame() {
 	game.level = 1;
 	game.score = 0;
+	game.lives = 3;
+	updateScore();
+	updateLives();
 	removeTitleText();
 	removeAsteroids();
+
+	var x = game.width / 2;
+	var y = game.height / 2;
+	var rotation = 0;
+	game.ship.x = x;
+	game.ship.y = y;
+	game.ship.rotation = rotation;
+	game.ship.collisionPolygon.pos.x = x;
+	game.ship.collisionPolygon.pos.y = y;
+	game.ship.collisionPolygon.setAngle(rotation);
+
 	startLevel();
 }
 
@@ -491,16 +521,19 @@ function startLevel() {
 			game.app.stage.removeChild(game.texts.center);
 			game.texts.center = null;
 
-			game.state = STATES.ALIVE;
-			game.ship.visible = true;
+			// TODO: Tarkista, että asteroidit ovat tarpeeksi kaukana aluksesta
+			if (game.state != STATES.ALIVE)
+				respawnShip();
 		},
 		d:180
 	});
 }
 
 function removeTitleText() {
-	game.app.stage.removeChild(game.texts.title);
-	game.texts.title = null;
+	if (game.texts.title) {
+		game.app.stage.removeChild(game.texts.title);
+		game.texts.title = null;
+	}
 }
 
 function createTitleText() {
@@ -524,36 +557,81 @@ function createCenterText(text) {
 	game.app.stage.addChildAt(game.texts.center);
 }
 
-function updateScore(text) {
+function updateScore() {
 	if (!game.texts.score) {
-		game.texts.score = new PIXI.extras.BitmapText(text, {font: game.font});
+		game.texts.score = new PIXI.extras.BitmapText(game.score.toString(), {font: game.font});
 		game.texts.score.anchor = new PIXI.Point(1, 0);
 		game.texts.score.x = 785;
 		game.texts.score.y = 0;
 		game.texts.score.zIndex = 1;
 	}
 	else {
-		game.texts.score.text = text
+		game.texts.score.text = game.score.toString();
 	}
 }
 
-function stopShip() {
+function updateLives() {
+	if (!game.texts.lives) {
+		game.texts.lives = new PIXI.extras.BitmapText(game.lives.toString(), {font: game.font});
+		game.texts.lives.anchor = new PIXI.Point(1, 0);
+		game.texts.lives.x = 33;
+		game.texts.lives.y = 0;
+		game.texts.lives.zIndex = 1;
+	}
+	else {
+		game.texts.lives.text = game.lives.toString();
+	}
+}
+
+function stopAndHideShip() {
 	game.ship.acceleration.total = 0;
 	game.ship.speed.x = 0;
 	game.ship.speed.y = 0;
+	game.ship.rotationDirection = 0;
 	game.ship.afterburner.stopAndHide();
+
+	game.ship.visible = false;
 }
 
 function shipHit() {
 	game.state = STATES.DEAD;
+	game.lives--;
+	updateLives();
 
-	stopShip();
-
-	game.app.stage.removeChild(game.ship);
+	stopAndHideShip();
 
 	game.emitter.updateSpawnPos(game.ship.x, game.ship.y);
 	game.emitter.resetPositionTracking();
 	game.emitter.emit = true;
+
+	if (game.lives > 0) {
+		game.timeline.push({
+			f: function () {
+				respawnShip();
+			},
+			d:120
+		});
+	}
+	else {
+		game.timeline.push({
+			f: function () {
+				gameOver();
+			},
+			d:120
+		});
+	}
+
+}
+
+function gameOver() {
+	createCenterText('Game over');
+
+	game.timeline.push({
+		f: function () {
+			mainScreen();
+		},
+		d:180
+	});
 }
 
 function init() {
@@ -569,8 +647,11 @@ function init() {
 
 		mainScreen();
 
-		updateScore(game.score.toString());
+		updateScore();
 		game.app.stage.addChildAt(game.texts.score);
+
+		updateLives()
+		game.app.stage.addChildAt(game.texts.lives);
 
 		game.bullets = [];
 
