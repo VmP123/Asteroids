@@ -201,7 +201,7 @@ function createSmallAsteroids(oa) {
 
 function createShip() {
 	var ship = createPolygon([0,-17, -11,13, 11,13, 0,-17], game.width / 2, game.height / 2, 0 /*Math.PI * 0.25*/);
-	ship.acceleration = {x: 0, y: 0, total: 0};
+	ship.acceleration = 0;
 	ship.speed = {x: 0, y: 0, rotation: 0.07};
 
 	ship.afterburner = new AnimatedGraphics(function (frame) {
@@ -289,8 +289,8 @@ function getAsteroidCount(levelNumber) {
 function onKeyDown(key) {
 	if (game.state == STATES.ALIVE) {
 		if (key.keyCode == 38) {
-			if (!game.ship.acceleration.total) {
-				game.ship.acceleration.total = 0.055;
+			if (!game.ship.acceleration) {
+				game.ship.acceleration = 0.055;
 
 				game.ship.afterburner.setCurrentFrame(0);
 				game.ship.afterburner.play();
@@ -316,7 +316,7 @@ function onKeyDown(key) {
 function onKeyUp(key) {
 	if (game.state == STATES.ALIVE) {
 		if (key.keyCode == 38) {
-			game.ship.acceleration.total = 0;
+			game.ship.acceleration = 0;
 			game.ship.afterburner.stopAndHide();
 		}
 		if (key.keyCode == 37 && game.ship.rotationDirection == -1) {
@@ -354,9 +354,9 @@ function gameLoop(delta) {
 	game.emitter.update(delta/60);
 
 	//ship
-	if (game.ship.acceleration.total != 0) {
-		game.ship.speed.x += Math.sin(game.ship.rotation) * game.ship.acceleration.total;
-		game.ship.speed.y += Math.cos(game.ship.rotation) * game.ship.acceleration.total;
+	if (game.ship.acceleration != 0) {
+		game.ship.speed.x += Math.sin(game.ship.rotation) * game.ship.acceleration;
+		game.ship.speed.y += Math.cos(game.ship.rotation) * game.ship.acceleration;
 	}
 
 	// Friction
@@ -586,7 +586,7 @@ function updateLives() {
 }
 
 function stopAndHideShip() {
-	game.ship.acceleration.total = 0;
+	game.ship.acceleration = 0;
 	game.ship.speed.x = 0;
 	game.ship.speed.y = 0;
 	game.ship.rotationDirection = 0;
