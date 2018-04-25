@@ -125,15 +125,30 @@ function removeAsteroids() {
 	game.asteroids = [];
 }
 
+function getRandomY(x) {
+	var borderSize = 100;
+
+	if (borderSize <= x && x <= (game.width - borderSize)) {
+		y = Math.random() * borderSize * 2
+		if (y >= borderSize)
+			y = y + (game.height - borderSize * 2)
+	}
+	else
+		y = Math.random() * game.height;
+
+	return Math.floor(y);
+}
+
 function createBigAsteroids(count) {
 	var asteroids = [];
 	for(var i = 0; i < count; i++) {
-		var x = (Math.random() * 540) + 40;
-		var y = (Math.random() * 480);
+		var x = Math.floor((Math.random() * 800));
+		var y = getRandomY(x); //(Math.random() * 600);
+
 		var rotation = 2 * Math.PI * Math.random();
 		//var rotation = 0.25 * Math.PI;
 
-		var a = createPolygon([-18,-38, -38,-3, -28,22, 27,27, 42,12, 22,-28, -18,-38], x, y, rotation);
+		var a = createPolygon([-18,-38, -38,-3, -28,22, 27,27, 42,12, 22,-28], x, y, rotation);
 		a.speed = {x: (Math.random() * 4) - 2, y: (Math.random() * 4) - 2};
 		a.type = ASTEROID_TYPE.BIG;
 
@@ -146,21 +161,26 @@ function createBigAsteroids(count) {
 function createVectors(points) {
 	var vectors = []
 	for (i = 0; i < points.length / 2; i++) {
-		vectors.push(new SAT.Vector(points[i], points[i + 1]));
+		vectors.push(new SAT.Vector(points[i * 2], points[(i * 2) + 1]));
 	}
+
 	return vectors;
 }
 
 function createPolygon(points, x, y, rotation) {
+	var pointsWithEndPoints = points.slice();
+	pointsWithEndPoints.push(points[0]);
+	pointsWithEndPoints.push(points[1]);
+
 	var p = new PIXI.Graphics();
 	p.lineStyle(1, 0xffffff, 1);
-	p.drawPolygon(points);
+	p.drawPolygon(pointsWithEndPoints);
 	p.x = x;
 	p.y = y;
 	p.rotation = rotation;
 	p.collisionPolygon = new SAT.Polygon(new SAT.Vector(0, 0), createVectors(points));
 	p.collisionPolygon.pos.x = x;
-	p.collisionPolygon.pos.y = x;
+	p.collisionPolygon.pos.y = y;
 	p.collisionPolygon.setAngle(rotation);
 
 	return p;
@@ -184,7 +204,7 @@ function createAsteroidGroup(x, y, rotation, distance, points, type, rotationOff
 }
 
 function createSmallestAsteroids(oa) {
-	var points = [-8,-8, -7,10, 7,8, 9,-9, 0,-13, -8,-8];
+	var points = [-8,-8, -7,10, 7,8, 9,-9, 0,-13];
 	var asteroids = createAsteroidGroup(oa.x, oa.y, oa.rotation, 4, points, ASTEROID_TYPE.SMALL, 0.5 * Math.PI, 2)
 
 	return asteroids;
@@ -193,14 +213,14 @@ function createSmallestAsteroids(oa) {
 }
 
 function createSmallAsteroids(oa) {
-	var points = [-7,-19, -24,-2, -12,19, 7,11, 2,-17, -7,-19];
+	var points = [-7,-19, -24,-2, -12,19, 7,11, 2,-17];
 	var asteroids = createAsteroidGroup(oa.x, oa.y, oa.rotation, 11, points, ASTEROID_TYPE.MIDDLE, 0.25 * Math.PI, 4)
 
 	return asteroids;
 }
 
 function createShip() {
-	var ship = createPolygon([0,-17, -11,13, 11,13, 0,-17], game.width / 2, game.height / 2, 0 /*Math.PI * 0.25*/);
+	var ship = createPolygon([0,-17, -11,13, 11,13], game.width / 2, game.height / 2, 0 /*Math.PI * 0.25*/);
 	ship.acceleration = 0;
 	ship.speed = {x: 0, y: 0, rotation: 0.07};
 
@@ -670,6 +690,37 @@ function init() {
 
 		document.addEventListener('keydown', onKeyDown);
 		document.addEventListener('keyup', onKeyUp);
+
+		//test();
 	});
 }
 init();
+
+function test() {
+	game.a = createPolygon([-7,-19, -24,-2, -12,19, 7,11, 2,-17], 100, 100, Math.PI*0);
+	game.app.stage.addChild(game.a);
+
+	var c = new PIXI.Graphics();
+	c.lineStyle(1, 0xFFFFFF);  //(thickness, color)
+	c.drawCircle(game.width / 2, game.height / 2, 200);
+	c.endFill();
+	game.app.stage.addChild(c);
+
+	var p = new PIXI.Graphics();
+	p.lineStyle(1, 0xffffff, 1);
+	p.drawCircle(150, 150, 0);
+	game.app.stage.addChild(p)
+
+	var x;
+	var y;
+	for (x = 0; x < 800; x = x + 1) {
+		for (y = 0; y < 600; y = y + 1) {
+			if (SAT.pointInPolygon(new SAT.Vector(x, y), game.a.collisionPolygon)) p.drawCircle(x, y, 1);
+		}
+	}
+
+	var p1 = new SAT.Polygon(new SAT.Vector(100, 100),[new SAT.Vector(50, 50), new SAT.Vector(150, 50), new SAT.Vector(150, 150), new SAT.Vector(50, 150)]);
+	var c1 = new SAT.Circle(new SAT.Vector(100,100), 100);
+	console.log(SAT.testPolygonCircle(p1, c1));
+	console.log(SAT.testCirclePolygon(c1, p1));
+}
