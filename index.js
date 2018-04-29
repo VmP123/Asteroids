@@ -35,6 +35,260 @@ class AnimatedGraphics {
 	}
 }
 
+class CollisionPolygonGraphics {
+	constructor(points, x, y, rotation) {
+		var pointsWithEndPoints = points.slice();
+		pointsWithEndPoints.push(points[0]);
+		pointsWithEndPoints.push(points[1]);
+
+		this.graphics = new PIXI.Graphics();
+		this.graphics.lineStyle(1, 0xffffff, 1);
+		this.graphics.drawPolygon(pointsWithEndPoints);
+		this.graphics.x = x;
+		this.graphics.y = y;
+		this.graphics.rotation = rotation;
+
+		this.collisionPolygon = new SAT.Polygon(new SAT.Vector(0, 0), this.createVectors(points));
+		this.collisionPolygon.pos.x = x;
+		this.collisionPolygon.pos.y = y;
+		this.collisionPolygon.setAngle(rotation);
+	}
+
+	set x(x) {
+		this.graphics.x = x;
+		this.collisionPolygon.pos.x = x;
+	}
+
+	get x() {
+		return this.graphics.x;
+	}
+
+	set y(y) {
+		this.graphics.y = y;
+		this.collisionPolygon.pos.y = y;
+	}
+
+	get y() {
+		return this.graphics.y;
+	}
+
+	set rotation(rotation) {
+		this.graphics.rotation = rotation;
+		this.collisionPolygon.setAngle(rotation);
+	}
+
+	get rotation() {
+		return this.graphics.rotation;
+	}
+
+	set visible(visible) {
+		this.graphics.visible = visible;
+	}
+
+	getGraphics() {
+		return this.graphics;
+	}
+
+	getCollisionPolygon() {
+		return this.collisionPolygon;
+	}
+
+	collision(anotherCollisionPolygonGraphics) {
+		return SAT.testPolygonPolygon(this.getCollisionPolygon(), anotherCollisionPolygonGraphics.getCollisionPolygon());
+	}
+
+	createVectors(points) {
+		var vectors = []
+		var i;
+		for (i = 0; i < points.length / 2; i++) {
+			vectors.push(new SAT.Vector(points[i * 2], points[(i * 2) + 1]));
+		}
+
+		return vectors;
+	}
+}
+
+class Asteroid extends CollisionPolygonGraphics {
+	constructor(x, y, rotation, speed, type) {
+		var points;
+
+		if (type === ASTEROID_TYPE.BIG)
+			points = [-18,-38, -38,-3, -28,22, 27,27, 42,12, 22,-28];
+		else if (type === ASTEROID_TYPE.MIDDLE)
+			points = [-7,-19, -24,-2, -12,19, 7,11, 2,-17];
+		else if (type === ASTEROID_TYPE.SMALL)
+			points = [-8,-8, -7,10, 7,8, 9,-9, 0,-13];
+
+		super(points, x, y, rotation);
+		this.speed = speed;
+		this.type = type;
+	}
+
+	update(delta) {
+		this.graphics.x += this.speed.x * delta;
+		this.graphics.y += this.speed.y * delta;
+		warp(this.graphics);
+		this.collisionPolygon.pos.x = this.graphics.x;
+		this.collisionPolygon.pos.y = this.graphics.y;
+	}
+}
+
+class Ship extends CollisionPolygonGraphics {
+	constructor(x, y, rotation, speed, type) {
+		var x = game.width / 2;
+		var	y = game.height / 2;
+		var rotation = 0;
+
+		super([0,-17, -11,13, 11,13], x, y, rotation);
+		this.acceleration = 0;
+		this.speed = {x: 0, y: 0, rotation: 0.07};
+
+		this.afterburner = new AnimatedGraphics(function (frame) {
+			this.graphics.lineStyle(1, 0xffffff, 1);
+
+			this.graphics.moveTo(-5, 14);
+			this.graphics.lineTo(0, 22);
+			this.graphics.lineTo(5, 14);
+		},
+		function (frame) {
+			if (frame != 0 && frame % 5 == 0) {
+				this.graphics.visible = !this.graphics.visible;
+			}
+		});
+	}
+
+	update (delta) {
+		//ship
+		if (this.acceleration != 0) {
+			this.speed.x += Math.sin(this.graphics.rotation) * game.ship.acceleration;
+			this.speed.y += Math.cos(this.graphics.rotation) * game.ship.acceleration;
+		}
+
+		// Friction
+		this.speed.x *= 0.995;
+		this.speed.y *= 0.995;
+
+		if (this.rotationDirection)
+			this.graphics.rotation += this.speed.rotation * delta * this.rotationDirection;
+
+		if (this.speed.x != 0)
+			this.graphics.x += delta * this.speed.x;
+
+		if (this.speed.y != 0)
+			this.graphics.y -= delta * this.speed.y;
+
+		warp(this.graphics);
+
+		this.collisionPolygon.pos.x = this.graphics.x;
+		this.collisionPolygon.pos.y = this.graphics.y;
+		this.collisionPolygon.setAngle(this.graphics.rotation);
+
+		this.afterburner.graphics.x = this.graphics.x;
+		this.afterburner.graphics.y = this.graphics.y;
+		this.afterburner.graphics.rotation = this.graphics.rotation;
+
+		this.afterburner.update();
+	}
+
+	stopAndHide() {
+		this.acceleration = 0;
+		this.speed.x = 0;
+		this.speed.y = 0;
+		this.rotationDirection = 0;
+		this.afterburner.stopAndHide();
+
+		this.graphics.visible = false;
+	}
+}
+
+class CollisionPointGraphics {
+	constructor (x, y) {
+		this.graphics = new PIXI.Graphics();
+		this.graphics.lineStyle(1, 0xffffff, 1);
+		this.graphics.moveTo(0,1);
+		this.graphics.lineTo(0,0);
+
+		this.graphics.x = x;
+		this.graphics.y = y;
+
+		this.collisionPoint = new SAT.Vector(x, y);
+	}
+
+	set x(x) {
+		this.graphics.x = x;
+		this.collisionPoint.x = x;
+	}
+
+	set y(y) {
+		this.graphics.y = y;
+		this.collisionPoint.y = y;
+	}
+
+	getGraphics() {
+		return this.graphics;
+	}
+
+	collision(collisionPolygonGraphics) {
+		return SAT.pointInPolygon(this.collisionPoint, collisionPolygonGraphics.getCollisionPolygon());
+	}
+}
+
+class Bullet extends CollisionPointGraphics {
+	constructor (x, y, angle, distance) {
+		super(x, y);
+
+		this.x = x + Math.cos(angle + 0.5 * Math.PI) * (-distance);
+		this.y = y + Math.sin(angle + 0.5 * Math.PI) * (-distance);
+
+		this.lifespan = 40;
+		this.age = 0;
+
+		var speed = 6;
+		this.speed = {};
+		this.speed.x = Math.sin(game.ship.rotation) * speed;
+		this.speed.y = -Math.cos(game.ship.rotation) * speed;
+	}
+
+	update (delta) {
+		this.graphics.x += delta * this.speed.x;
+		this.graphics.y += delta * this.speed.y;
+		warp(this.graphics);
+		this.collisionPoint.x = this.graphics.x;
+		this.collisionPoint.y = this.graphics.y;
+	}
+}
+
+class TimelineEvent {
+	constructor(func, delay) {
+		this.func = func;
+		this.delay = delay;
+	}
+}
+
+class Timeline {
+	constructor() {
+		this.timelineEvents = []
+	}
+
+	add(timelineEvent) {
+		this.timelineEvents.push(timelineEvent);
+	}
+
+	update(delta) {
+		if (this.timelineEvents.length == 0)
+			return;
+
+		var te = this.timelineEvents[0];
+		te.delay -= delta;
+
+		if (te.delay <= 0) {
+			if (te.func)
+				te.func();
+			this.timelineEvents.splice(0, 1);
+		}
+	}
+}
+
 const STATES = {
 	MAINSCREEN: 1,
 	ALIVE: 2,
@@ -120,7 +374,7 @@ game.emitterConfig = {
 
 function removeAsteroids() {
 	game.asteroids.forEach(function (asteroid) {
-		game.app.stage.removeChild(asteroid);
+		game.app.stage.removeChild(asteroid.getGraphics());
 	});
 	game.asteroids = [];
 }
@@ -141,16 +395,15 @@ function getRandomY(x) {
 
 function createBigAsteroids(count) {
 	var asteroids = [];
+
 	for(var i = 0; i < count; i++) {
 		var x = Math.floor((Math.random() * 800));
-		var y = getRandomY(x); //(Math.random() * 600);
-
+		var y = getRandomY(x);
 		var rotation = 2 * Math.PI * Math.random();
-		//var rotation = 0.25 * Math.PI;
+		var speed = {x: (Math.random() * 4) - 2, y: (Math.random() * 4) - 2};
+		var type = ASTEROID_TYPE.BIG;
 
-		var a = createPolygon([-18,-38, -38,-3, -28,22, 27,27, 42,12, 22,-28], x, y, rotation);
-		a.speed = {x: (Math.random() * 4) - 2, y: (Math.random() * 4) - 2};
-		a.type = ASTEROID_TYPE.BIG;
+		var a = new Asteroid(x, y, rotation, speed, type);
 
 		asteroids.push(a);
 	}
@@ -158,99 +411,33 @@ function createBigAsteroids(count) {
 	return asteroids;
 }
 
-function createVectors(points) {
-	var vectors = []
-	for (i = 0; i < points.length / 2; i++) {
-		vectors.push(new SAT.Vector(points[i * 2], points[(i * 2) + 1]));
-	}
-
-	return vectors;
-}
-
-function createPolygon(points, x, y, rotation) {
-	var pointsWithEndPoints = points.slice();
-	pointsWithEndPoints.push(points[0]);
-	pointsWithEndPoints.push(points[1]);
-
-	var p = new PIXI.Graphics();
-	p.lineStyle(1, 0xffffff, 1);
-	p.drawPolygon(pointsWithEndPoints);
-	p.x = x;
-	p.y = y;
-	p.rotation = rotation;
-	p.collisionPolygon = new SAT.Polygon(new SAT.Vector(0, 0), createVectors(points));
-	p.collisionPolygon.pos.x = x;
-	p.collisionPolygon.pos.y = y;
-	p.collisionPolygon.setAngle(rotation);
-
-	return p;
-}
-
-function createAsteroidGroup(x, y, rotation, distance, points, type, rotationOffset, count) {
+function createAsteroidGroup(x, y, rotation, distance, type, rotationOffset, count) {
 	var asteroids = []
-	var speed = 0.5 + Math.random() * 1.5;
+	var speedTotal = 0.5 + Math.random() * 1.5;
 
 	for(var i = 0; i < count; i++) {
 		var rot = rotation + ((((2 / count) * i)) * Math.PI + rotationOffset)
-		xd = distance * Math.cos(rot);
-		yd = distance * Math.sin(rot);
-		a = createPolygon(points, x + xd, y + yd, 2 * Math.PI * Math.random());
-		a.speed = {x: speed * Math.cos(rot), y: speed * Math.sin(rot)}
-		a.type = type;
-		asteroids.push(a);
+		var xd = distance * Math.cos(rot);
+		var yd = distance * Math.sin(rot);
+		var speed = {x: speedTotal * Math.cos(rot), y: speedTotal * Math.sin(rot)}
+		asteroids.push(new Asteroid(x + xd, y + yd, 2 * Math.PI * Math.random(), speed, type));
 	}
 
 	return asteroids;
 }
 
-function createSmallestAsteroids(oa) {
-	var points = [-8,-8, -7,10, 7,8, 9,-9, 0,-13];
-	var asteroids = createAsteroidGroup(oa.x, oa.y, oa.rotation, 4, points, ASTEROID_TYPE.SMALL, 0.5 * Math.PI, 2)
-
-	return asteroids;
-
-	return [];
-}
-
 function createSmallAsteroids(oa) {
-	var points = [-7,-19, -24,-2, -12,19, 7,11, 2,-17];
-	var asteroids = createAsteroidGroup(oa.x, oa.y, oa.rotation, 11, points, ASTEROID_TYPE.MIDDLE, 0.25 * Math.PI, 4)
-
-	return asteroids;
+	return createAsteroidGroup(oa.x, oa.y, oa.rotation, 4, ASTEROID_TYPE.SMALL, 0.5 * Math.PI, 2);
 }
 
-function createShip() {
-	var ship = createPolygon([0,-17, -11,13, 11,13], game.width / 2, game.height / 2, 0 /*Math.PI * 0.25*/);
-	ship.acceleration = 0;
-	ship.speed = {x: 0, y: 0, rotation: 0.07};
-
-	ship.afterburner = new AnimatedGraphics(function (frame) {
-		this.graphics.lineStyle(1, 0xffffff, 1);
-
-		this.graphics.moveTo(-5, 14);
-		this.graphics.lineTo(0, 22);
-		this.graphics.lineTo(5, 14);
-	},
-	function (frame) {
-		this.graphics.x = game.ship.x;
-		this.graphics.y = game.ship.y;
-		this.graphics.rotation = game.ship.rotation;
-
-		if (frame != 0 && frame % 5 == 0) {
-			this.graphics.visible = !this.graphics.visible;
-		}
-	});
-
-	return ship;
+function createMiddleAsteroids(oa) {
+	return createAsteroidGroup(oa.x, oa.y, oa.rotation, 11, ASTEROID_TYPE.MIDDLE, 0.25 * Math.PI, 4);
 }
 
 function respawnShip() {
 	game.ship.x = game.width / 2;
 	game.ship.y = game.height / 2;
-	game.ship.collisionPolygon.pos.x = game.ship.x
-	game.ship.collisionPolygon.pos.y = game.ship.y;
 	game.ship.rotation = 0;
-	game.ship.collisionPolygon.setAngle(0);
 
 	game.ship.visible = true;
 	game.state = STATES.ALIVE;
@@ -268,37 +455,13 @@ function warp(movingObject) {
 		movingObject.y += game.height;
 }
 
-function createBullet() {
-	var bullet = new PIXI.Graphics();
-	bullet.lineStyle(1, 0xffffff, 1);
-
-	game.lastBulletCreated = 0;
-
-	bullet.moveTo(0,1);
-	bullet.lineTo(0,0);
-
-	Math.cos(game.ship.rotation);
-	bullet.x = game.ship.x + Math.cos(game.ship.rotation + 0.5 * Math.PI) * (-17);
-	bullet.y = game.ship.y + Math.sin(game.ship.rotation + 0.5 * Math.PI) * (-17);
-	bullet.collisionPoint = new SAT.Vector(bullet.x, bullet.y);
-
-	bullet.lifespan = 40;
-	bullet.age = 0;
-
-	var speed = 6;
-	bullet.speed = {};
-	bullet.speed.x = Math.sin(game.ship.rotation) * speed;
-	bullet.speed.y = -Math.cos(game.ship.rotation) * speed;
-
-	return bullet;
-}
-
 function tryCreateBullet() {
 	if (Date.now() - game.lastBulletCreated > game.bulletDelay) {
-		var bullet = createBullet();
-		game.lastBulletCreated = Date.now();
-		game.app.stage.addChild(bullet);
+		var bullet = new Bullet(game.ship.x, game.ship.y, game.ship.rotation, 17);
+		game.app.stage.addChild(bullet.getGraphics());
 		game.bullets.push(bullet);
+
+		game.lastBulletCreated = Date.now();
 	}
 }
 
@@ -348,20 +511,6 @@ function onKeyUp(key) {
 	}
 }
 
-function handleTimeline(delta) {
-	if (game.timeline.length == 0)
-		return;
-
-	var task = game.timeline[0];
-	task.d -= delta;
-
-	if (task.d <= 0) {
-		if (task.f)
-			task.f();
-		game.timeline.splice(0, 1);
-	}
-}
-
 function gameLoop(delta) {
 	//delta *= 0.1
 
@@ -369,93 +518,59 @@ function gameLoop(delta) {
 		return;
 	}
 
-	handleTimeline(delta);
-
+	game.timeline.update(delta);
 	game.emitter.update(delta/60);
-
-	//ship
-	if (game.ship.acceleration != 0) {
-		game.ship.speed.x += Math.sin(game.ship.rotation) * game.ship.acceleration;
-		game.ship.speed.y += Math.cos(game.ship.rotation) * game.ship.acceleration;
-	}
-
-	// Friction
-	game.ship.speed.x *= 0.995;
-	game.ship.speed.y *= 0.995;
-
-	if (game.ship.rotationDirection)
-		game.ship.rotation += game.ship.speed.rotation * delta * game.ship.rotationDirection;
-
-	if (game.ship.speed.x != 0)
-		game.ship.x += delta * game.ship.speed.x;
-
-	if (game.ship.speed.y != 0)
-		game.ship.y -= delta * game.ship.speed.y;
-
-	warp(game.ship);
-	game.ship.collisionPolygon.pos.x = game.ship.x;
-	game.ship.collisionPolygon.pos.y = game.ship.y;
-	game.ship.collisionPolygon.setAngle(game.ship.rotation);
-
-	game.ship.afterburner.update();
+	game.ship.update(delta);
 
 	//Asteroids
 	for(var i = 0; i < game.asteroids.length; i++) {
 		var asteroid = game.asteroids[i];
 
-		asteroid.x += asteroid.speed.x * delta;
-		asteroid.y += asteroid.speed.y * delta;
-		warp(asteroid);
-		asteroid.collisionPolygon.pos.x = asteroid.x;
-		asteroid.collisionPolygon.pos.y = asteroid.y;
+		asteroid.update(delta);
 
-		if (game.state == STATES.ALIVE) {
-			var hit = SAT.testPolygonPolygon(game.ship.collisionPolygon, asteroid.collisionPolygon)
-			if (hit)
-				shipHit();
+		if (game.state == STATES.ALIVE && asteroid.collision(game.ship)) {;
+			shipHit();
 		}
 	}
 
 	// Bullets
 	bulletsLoop:
 	for(var i = game.bullets.length - 1; i >= 0; i--) {
-		game.bullets[i].x += delta * game.bullets[i].speed.x;
-		game.bullets[i].y += delta * game.bullets[i].speed.y;
-		warp(game.bullets[i]);
-		game.bullets[i].collisionPoint.x = game.bullets[i].x;
-		game.bullets[i].collisionPoint.y = game.bullets[i].y;
+		game.bullets[i].update(delta);
 
 		if (game.bullets[i].age > game.bullets[i].lifespan) {
-			game.app.stage.removeChild(game.bullets[i]);
+			game.app.stage.removeChild(game.bullets[i].getGraphics());
 			game.bullets.splice(i, 1);
 		} else {
 			game.bullets[i].age += delta;
 
 			for (var j = game.asteroids.length - 1; j >= 0 ; j--) {
-				if (SAT.pointInPolygon(game.bullets[i].collisionPoint, game.asteroids[j].collisionPolygon)) {
-					game.app.stage.removeChild(game.bullets[i]);
+				if (game.bullets[i].collision(game.asteroids[j])) {
+					game.app.stage.removeChild(game.bullets[i].getGraphics());
 					game.bullets.splice(i, 1);
-					game.app.stage.removeChild(game.asteroids[j]);
+					game.app.stage.removeChild(game.asteroids[j].getGraphics());
 					var a = game.asteroids.splice(j, 1)[0];
+
 					if (a.type == ASTEROID_TYPE.BIG) {
-						var smallAsteroids = createSmallAsteroids(a);
-						smallAsteroids.forEach(function (sa) {
-							game.app.stage.addChild(sa);
-							game.asteroids.push(sa);
-						});
+						var newAsteroids = createMiddleAsteroids(a);
+						 newAsteroids.forEach(function (na) {
+						 	game.app.stage.addChild(na.getGraphics());
+						 	game.asteroids.push(na);
+						 });
 						game.score += SCORES.BIG;
 					}
 					else if (a.type == ASTEROID_TYPE.MIDDLE) {
-						var smallestAsteroids = createSmallestAsteroids(a);
-						smallestAsteroids.forEach(function (sa) {
-							game.app.stage.addChild(sa);
-							game.asteroids.push(sa);
+						var newAsteroids = createSmallAsteroids(a);
+						newAsteroids.forEach(function (a) {
+							game.app.stage.addChild(a.getGraphics());
+							game.asteroids.push(a);
 						});
 						game.score += SCORES.MIDDLE;
 					}
 					else if (a.type == ASTEROID_TYPE.SMALL) {
 						game.score += SCORES.SMALL;
 					}
+
 					game.emitter.updateSpawnPos(a.x, a.y);
 					game.emitter.resetPositionTracking();
 					game.emitter.emit = true;
@@ -483,7 +598,7 @@ function mainScreen(createAsteroids) {
 		removeAsteroids();
 		game.asteroids = createBigAsteroids(4);
 		for(var i = 0; i < game.asteroids.length; i++)
-			game.app.stage.addChild(game.asteroids[i]);
+			game.app.stage.addChild(game.asteroids[i].getGraphics());
 	}
 
 	createCenterText('Press S to start')
@@ -505,9 +620,6 @@ function startGame() {
 	game.ship.x = x;
 	game.ship.y = y;
 	game.ship.rotation = rotation;
-	game.ship.collisionPolygon.pos.x = x;
-	game.ship.collisionPolygon.pos.y = y;
-	game.ship.collisionPolygon.setAngle(rotation);
 
 	game.state = STATES.DEAD;
 
@@ -515,31 +627,24 @@ function startGame() {
 }
 
 function levelCompleted() {
-	console.log('levelCompleted');
-
 	game.level++;
-	game.timeline.push({
-		f: function () {
-			startLevel();
-		},
-		d:120
-	});
+	game.timeline.add(new TimelineEvent(startLevel,	120));
 }
 
 function startLevel() {
-	game.timeline.push({
-		f: function () {
+	game.timeline.add(new TimelineEvent(
+		function () {
 			createCenterText('Level ' + game.level);
 
 			game.asteroids = createBigAsteroids(getAsteroidCount(game.level));
 			for(var i = 0; i < game.asteroids.length; i++)
-				game.app.stage.addChild(game.asteroids[i]);
+				game.app.stage.addChild(game.asteroids[i].getGraphics());
 		},
-		d:0
-	});
+		0
+	));
 
-	game.timeline.push({
-		f: function () {
+	game.timeline.add(new TimelineEvent(
+		function () {
 			game.app.stage.removeChild(game.texts.center);
 			game.texts.center = null;
 
@@ -547,8 +652,8 @@ function startLevel() {
 			if (game.state != STATES.ALIVE)
 				respawnShip();
 		},
-		d:180
-	});
+		180
+	));
 }
 
 function removeTitleText() {
@@ -605,55 +710,31 @@ function updateLives() {
 	}
 }
 
-function stopAndHideShip() {
-	game.ship.acceleration = 0;
-	game.ship.speed.x = 0;
-	game.ship.speed.y = 0;
-	game.ship.rotationDirection = 0;
-	game.ship.afterburner.stopAndHide();
-
-	game.ship.visible = false;
-}
-
 function shipHit() {
 	game.state = STATES.DEAD;
 	game.lives--;
 	updateLives();
 
-	stopAndHideShip();
+	game.ship.stopAndHide();
 
 	game.emitter.updateSpawnPos(game.ship.x, game.ship.y);
 	game.emitter.resetPositionTracking();
 	game.emitter.emit = true;
 
 	if (game.lives > 0) {
-		game.timeline.push({
-			f: function () {
-				respawnShip();
-			},
-			d:120
-		});
+		game.timeline.add(new TimelineEvent(respawnShip, 120));
 	}
 	else {
-		game.timeline.push({
-			f: function () {
-				gameOver();
-			},
-			d:120
-		});
+		game.timeline.add(new TimelineEvent(gameOver, 120));
 	}
-
 }
 
 function gameOver() {
 	createCenterText('Game over');
-
-	game.timeline.push({
-		f: function () {
-			mainScreen(false);
-		},
-		d:180
-	});
+	game.timeline.add(new TimelineEvent(
+		function () { mainScreen(false); },
+		180
+	));
 }
 
 function init() {
@@ -663,8 +744,8 @@ function init() {
 		game.app = new PIXI.Application(game.width, game.height);
 		document.body.appendChild(game.app.view);
 
-		game.ship = createShip();
-		game.app.stage.addChild(game.ship);
+		game.ship = new Ship(game.width / 2, game.height / 2, 0);
+		game.app.stage.addChild(game.ship.getGraphics());
 		game.app.stage.addChild(game.ship.afterburner.getGraphics());
 
 		mainScreen(true);
@@ -683,6 +764,8 @@ function init() {
 			game.emitterConfig
 		);
 		game.emitter.emit = false;
+
+		game.timeline = new Timeline();
 
 		game.app.ticker.add(function(delta) {
 			gameLoop(delta);
