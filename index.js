@@ -1,3 +1,71 @@
+const STATES = {
+	MAINSCREEN: 1,
+	ALIVE: 2,
+	DEAD: 3,
+	GAMEOVER: 4
+}
+
+const ASTEROID_TYPE = {
+	BIG: 1,
+	MIDDLE: 2,
+	SMALL: 3
+}
+
+const SCORES = {
+	BIG: 10,
+	MIDDLE: 20,
+	SMALL: 40
+}
+
+var emitterConfig = {
+	"alpha": {
+		"start": 1,
+		"end": 1
+	},
+	"scale": {
+		"start": 1,
+		"end": 1,
+		"minimumScaleMultiplier": 1
+	},
+	"color": {
+		"start": "#ffffff",
+		"end": "#ffffff"
+	},
+	"speed": {
+		"start": 75,
+		"end": 5,
+		"minimumSpeedMultiplier": 1
+	},
+	"acceleration": {
+		"x": 0,
+		"y": 0
+	},
+	"maxSpeed": 0,
+	"startRotation": {
+		"min": 0,
+		"max": 360
+	},
+	"noRotation": true,
+	"rotationSpeed": {
+		"min": 0,
+		"max": 0
+	},
+	"lifetime": {
+		"min": 0.7,
+		"max": 1.3
+	},
+	"blendMode": "normal",
+	"frequency": 0.01,
+	"emitterLifetime": 0.2,
+	"maxParticles": 100,
+	"pos": {
+		"x": 0,
+		"y": 0
+	},
+	"addAtBack": false,
+	"spawnType": "point"
+};
+
 class AnimatedGraphics {
 	constructor(init, animate, lastFrame) {
 		this.graphics = new PIXI.Graphics();
@@ -135,8 +203,8 @@ class Asteroid extends CollisionPolygonGraphics {
 
 class Ship extends CollisionPolygonGraphics {
 	constructor(x, y, rotation, speed, type) {
-		var x = game.width / 2;
-		var	y = game.height / 2;
+		var x = width / 2;
+		var	y = height / 2;
 		var rotation = 0;
 
 		super([0,-17, -11,13, 11,13], x, y, rotation);
@@ -160,8 +228,8 @@ class Ship extends CollisionPolygonGraphics {
 	update (delta) {
 		//ship
 		if (this.acceleration != 0) {
-			this.speed.x += Math.sin(this.graphics.rotation) * game.ship.acceleration;
-			this.speed.y += Math.cos(this.graphics.rotation) * game.ship.acceleration;
+			this.speed.x += Math.sin(this.graphics.rotation) * this.acceleration;
+			this.speed.y += Math.cos(this.graphics.rotation) * this.acceleration;
 		}
 
 		// Friction
@@ -234,9 +302,11 @@ class CollisionPointGraphics {
 }
 
 class Bullet extends CollisionPointGraphics {
+	//static lastBulletCreated = Date.now()
+
 	constructor (x, y, angle, distance) {
 		super(x, y);
-
+		console.log(this.lastBulletCreated);
 		this.x = x + Math.cos(angle + 0.5 * Math.PI) * (-distance);
 		this.y = y + Math.sin(angle + 0.5 * Math.PI) * (-distance);
 
@@ -245,8 +315,8 @@ class Bullet extends CollisionPointGraphics {
 
 		var speed = 6;
 		this.speed = {};
-		this.speed.x = Math.sin(game.ship.rotation) * speed;
-		this.speed.y = -Math.cos(game.ship.rotation) * speed;
+		this.speed.x = Math.sin(angle) * speed;
+		this.speed.y = -Math.cos(angle) * speed;
 	}
 
 	update (delta) {
@@ -289,521 +359,429 @@ class Timeline {
 	}
 }
 
-const STATES = {
-	MAINSCREEN: 1,
-	ALIVE: 2,
-	DEAD: 3,
-	GAMEOVER: 4
-}
+class Game {
+	constructor() {
+		this.state = STATES.ALIVE;
+		this.font = '48px Hyperspace';
+		this.lastBulletCreated = Date.now();
+		this.bulletDelay = 300;
+		this.timeline = new Timeline();
+		this.asteroids = [];
+		this.texts = {};
+		this.lives = 3;
+		this.score = 0;
+		this.level = 1;
 
-const ASTEROID_TYPE = {
-	BIG: 1,
-	MIDDLE: 2,
-	SMALL: 3
-}
-
-const SCORES = {
-	BIG: 10,
-	MIDDLE: 20,
-	SMALL: 40
-}
-
-var game = {
-	width: 800,
-	height: 600,
-	state: STATES.ALIVE,
-	font: '48px Hyperspace',
-	lastBulletCreated: Date.now(),
-	bulletDelay: 300,
-	timeline: [],
-	asteroids: [],
-	texts: {},
-	lives: 3,
-	score: 0,
-	level: 1
-}
-
-game.emitterConfig = {
-	"alpha": {
-		"start": 1,
-		"end": 1
-	},
-	"scale": {
-		"start": 1,
-		"end": 1,
-		"minimumScaleMultiplier": 1
-	},
-	"color": {
-		"start": "#ffffff",
-		"end": "#ffffff"
-	},
-	"speed": {
-		"start": 75,
-		"end": 5,
-		"minimumSpeedMultiplier": 1
-	},
-	"acceleration": {
-		"x": 0,
-		"y": 0
-	},
-	"maxSpeed": 0,
-	"startRotation": {
-		"min": 0,
-		"max": 360
-	},
-	"noRotation": true,
-	"rotationSpeed": {
-		"min": 0,
-		"max": 0
-	},
-	"lifetime": {
-		"min": 0.7,
-		"max": 1.3
-	},
-	"blendMode": "normal",
-	"frequency": 0.01,
-	"emitterLifetime": 0.2,
-	"maxParticles": 100,
-	"pos": {
-		"x": 0,
-		"y": 0
-	},
-	"addAtBack": false,
-	"spawnType": "point"
-};
-
-function removeAsteroids() {
-	game.asteroids.forEach(function (asteroid) {
-		game.app.stage.removeChild(asteroid.getGraphics());
-	});
-	game.asteroids = [];
-}
-
-function getRandomY(x) {
-	var borderSize = 100;
-
-	if (borderSize <= x && x <= (game.width - borderSize)) {
-		y = Math.random() * borderSize * 2
-		if (y >= borderSize)
-			y = y + (game.height - borderSize * 2)
-	}
-	else
-		y = Math.random() * game.height;
-
-	return Math.floor(y);
-}
-
-function createBigAsteroids(count) {
-	var asteroids = [];
-
-	for(var i = 0; i < count; i++) {
-		var x = Math.floor((Math.random() * 800));
-		var y = getRandomY(x);
-		var rotation = 2 * Math.PI * Math.random();
-		var speed = {x: (Math.random() * 4) - 2, y: (Math.random() * 4) - 2};
-		var type = ASTEROID_TYPE.BIG;
-
-		var a = new Asteroid(x, y, rotation, speed, type);
-
-		asteroids.push(a);
+		this.init()
 	}
 
-	return asteroids;
-}
+	removeAsteroids() {
+		this.asteroids.forEach(function (asteroid) {
+			this.app.stage.removeChild(asteroid.getGraphics());
+		}.bind(this));
+		this.asteroids = [];
+	}
+	
+	getRandomY(x) {
+		var borderSize = 100;
+		var y;
 
-function createAsteroidGroup(x, y, rotation, distance, type, rotationOffset, count) {
-	var asteroids = []
-	var speedTotal = 0.5 + Math.random() * 1.5;
-
-	for(var i = 0; i < count; i++) {
-		var rot = rotation + ((((2 / count) * i)) * Math.PI + rotationOffset)
-		var xd = distance * Math.cos(rot);
-		var yd = distance * Math.sin(rot);
-		var speed = {x: speedTotal * Math.cos(rot), y: speedTotal * Math.sin(rot)}
-		asteroids.push(new Asteroid(x + xd, y + yd, 2 * Math.PI * Math.random(), speed, type));
+		if (borderSize <= x && x <= (width - borderSize)) {
+			y = Math.random() * borderSize * 2
+			if (y >= borderSize)
+				y = y + (height - borderSize * 2)
+		}
+		else
+			y = Math.random() * height;
+	
+		return Math.floor(y);
+	}
+	
+	createBigAsteroids(count) {
+		var asteroids = [];
+	
+		for(var i = 0; i < count; i++) {
+			var x = Math.floor((Math.random() * 800));
+			var y = this.getRandomY(x);
+			var rotation = 2 * Math.PI * Math.random();
+			var speed = {x: (Math.random() * 4) - 2, y: (Math.random() * 4) - 2};
+			var type = ASTEROID_TYPE.BIG;
+	
+			var a = new Asteroid(x, y, rotation, speed, type);
+	
+			asteroids.push(a);
+		}
+	
+		return asteroids;
+	}
+	
+	createAsteroidGroup(x, y, rotation, distance, type, rotationOffset, count) {
+		var asteroids = []
+		var speedTotal = 0.5 + Math.random() * 1.5;
+	
+		for(var i = 0; i < count; i++) {
+			var rot = rotation + ((((2 / count) * i)) * Math.PI + rotationOffset)
+			var xd = distance * Math.cos(rot);
+			var yd = distance * Math.sin(rot);
+			var speed = {x: speedTotal * Math.cos(rot), y: speedTotal * Math.sin(rot)}
+			asteroids.push(new Asteroid(x + xd, y + yd, 2 * Math.PI * Math.random(), speed, type));
+		}
+	
+		return asteroids;
+	}
+	
+	createSmallAsteroids(oa) {
+		return this.createAsteroidGroup(oa.x, oa.y, oa.rotation, 4, ASTEROID_TYPE.SMALL, 0.5 * Math.PI, 2);
+	}
+	
+	createMiddleAsteroids(oa) {
+		return this.createAsteroidGroup(oa.x, oa.y, oa.rotation, 11, ASTEROID_TYPE.MIDDLE, 0.25 * Math.PI, 4);
 	}
 
-	return asteroids;
-}
-
-function createSmallAsteroids(oa) {
-	return createAsteroidGroup(oa.x, oa.y, oa.rotation, 4, ASTEROID_TYPE.SMALL, 0.5 * Math.PI, 2);
-}
-
-function createMiddleAsteroids(oa) {
-	return createAsteroidGroup(oa.x, oa.y, oa.rotation, 11, ASTEROID_TYPE.MIDDLE, 0.25 * Math.PI, 4);
-}
-
-function respawnShip() {
-	game.ship.x = game.width / 2;
-	game.ship.y = game.height / 2;
-	game.ship.rotation = 0;
-
-	game.ship.visible = true;
-	game.state = STATES.ALIVE;
-}
-
-function warp(movingObject) {
-	if (movingObject.x > game.width)
-		movingObject.x -= game.width;
-	else if (movingObject.x < 0)
-		movingObject.x += game.width;
-
-	if (movingObject.y > game.height)
-		movingObject.y -= game.height;
-	else if (movingObject.y < 0)
-		movingObject.y += game.height;
-}
-
-function tryCreateBullet() {
-	if (Date.now() - game.lastBulletCreated > game.bulletDelay) {
-		var bullet = new Bullet(game.ship.x, game.ship.y, game.ship.rotation, 17);
-		game.app.stage.addChild(bullet.getGraphics());
-		game.bullets.push(bullet);
-
-		game.lastBulletCreated = Date.now();
+	respawnShip() {
+		this.ship.x = width / 2;
+		this.ship.y = height / 2;
+		this.ship.rotation = 0;
+	
+		this.ship.visible = true;
+		this.state = STATES.ALIVE;
 	}
-}
 
-function getAsteroidCount(levelNumber) {
-	return levelNumber + 1;
-}
+	tryCreateBullet() {
+		if (Date.now() - this.lastBulletCreated > this.bulletDelay) {
+			var bullet = new Bullet(this.ship.x, this.ship.y, this.ship.rotation, 17);
+			this.app.stage.addChild(bullet.getGraphics());
+			this.bullets.push(bullet);
+	
+			this.lastBulletCreated = Date.now();
+		}
+	}
+	
+	getAsteroidCount(levelNumber) {
+		return levelNumber + 1;
+	}	
 
-function onKeyDown(key) {
-	if (game.state == STATES.ALIVE) {
-		if (key.keyCode == 38) {
-			if (!game.ship.acceleration) {
-				game.ship.acceleration = 0.055;
+	mainScreen(createAsteroids) {
+		this.state = STATES.MAINSCREEN;
+		this.ship.visible = false;
+	
+		this.removeTitleText();
+	
+		if (createAsteroids) {
+			this.removeAsteroids();
+			this.asteroids = this.createBigAsteroids(4);
+			for(var i = 0; i < this.asteroids.length; i++)
+				this.app.stage.addChild(this.asteroids[i].getGraphics());
+		}
+	
+		this.createCenterText('Press S to start')
+		this.createTitleText();
+	}
+	
+	startGame() {
+		this.level = 1;
+		this.score = 0;
+		this.lives = 3;
+		this.updateScore();
+		this.updateLives();
+		this.removeTitleText();
+		this.removeAsteroids();
+	
+		var x = width / 2;
+		var y = height / 2;
+		var rotation = 0;
+		this.ship.x = x;
+		this.ship.y = y;
+		this.ship.rotation = rotation;
+	
+		this.state = STATES.DEAD;
+	
+		this.startLevel();
+	}
+	
+	levelCompleted() {
+		this.level++;
+		this.timeline.add(new TimelineEvent(this.startLevel.bind(this), 120));
+	}
+	
+	startLevel() {
+		this.timeline.add(new TimelineEvent(
+			function () {
+				this.createCenterText('Level ' + this.level);
+	
+				this.asteroids = this.createBigAsteroids(this.getAsteroidCount(this.level));
+				for(var i = 0; i < this.asteroids.length; i++)
+					this.app.stage.addChild(this.asteroids[i].getGraphics());
+			}.bind(this),
+			0
+		));
+	
+		this.timeline.add(new TimelineEvent(
+			function () {
+				this.app.stage.removeChild(this.texts.center);
+				this.texts.center = null;
+	
+				// TODO: Tarkista, että asteroidit ovat tarpeeksi kaukana aluksesta
+				if (this.state != STATES.ALIVE)
+					this.respawnShip();
+			}.bind(this),
+			180
+		));
+	}
 
-				game.ship.afterburner.setCurrentFrame(0);
-				game.ship.afterburner.play();
+	removeTitleText() {
+		if (this.texts.title) {
+			this.app.stage.removeChild(this.texts.title);
+			this.texts.title = null;
+		}
+	}
+	
+	createTitleText() {
+		this.texts.title = new PIXI.extras.BitmapText('Asteroids', {font: this.font});
+		this.texts.title.x = Math.round((width - this.texts.title.width) / 2);
+		this.texts.title.y = 150;
+		this.texts.title.zIndex = 1;
+		this.app.stage.addChildAt(this.texts.title);
+	}
+	
+	createCenterText(text) {
+		if (this.texts.center) {
+			this.app.stage.removeChild(this.texts.center);
+			this.texts.center = null;
+		}
+	
+		this.texts.center = new PIXI.extras.BitmapText(text, {font: this.font});
+		this.texts.center.x = Math.round((width - this.texts.center.width) / 2);
+		this.texts.center.y = Math.round((height - this.texts.center.height) / 2) - 15;
+		this.texts.center.zIndex = 1;
+		this.app.stage.addChildAt(this.texts.center);
+	}
+	
+	updateScore() {
+		if (!this.texts.score) {
+			this.texts.score = new PIXI.extras.BitmapText(this.score.toString(), {font: this.font});
+			this.texts.score.anchor = new PIXI.Point(1, 0);
+			this.texts.score.x = 785;
+			this.texts.score.y = 0;
+			this.texts.score.zIndex = 1;
+		}
+		else {
+			this.texts.score.text = this.score.toString();
+		}
+	}
+
+	gameLoop(delta) {
+		if (this.state == STATES.GAMEOVER) {
+			return;
+		}
+	
+		this.timeline.update(delta);
+		this.emitter.update(delta/60);
+		this.ship.update(delta);
+	
+		//Asteroids
+		for(var i = 0; i < this.asteroids.length; i++) {
+			var asteroid = this.asteroids[i];
+	
+			asteroid.update(delta);
+	
+			if (this.state == STATES.ALIVE && asteroid.collision(this.ship)) {;
+				this.shipHit();
 			}
 		}
-		else if (key.keyCode == 37) {
-			game.ship.rotationDirection = -1;
-		}
-		else if (key.keyCode == 39) {
-			game.ship.rotationDirection = 1;
-		}
-		else if (key.keyCode == 83) {
-			tryCreateBullet();
-		}
-	}
-	else if (game.state == STATES.MAINSCREEN) {
-		if (key.keyCode == 83) {
-			startGame();
-		}
-	}
-}
-
-function onKeyUp(key) {
-	if (game.state == STATES.ALIVE) {
-		if (key.keyCode == 38) {
-			game.ship.acceleration = 0;
-			game.ship.afterburner.stopAndHide();
-		}
-		if (key.keyCode == 37 && game.ship.rotationDirection == -1) {
-			game.ship.rotationDirection = 0;
-		}
-		else if (key.keyCode == 39 && game.ship.rotationDirection == 1) {
-			game.ship.rotationDirection = 0;
-		}
-	}
-}
-
-function gameLoop(delta) {
-	//delta *= 0.1
-
-	if (game.state == STATES.GAMEOVER) {
-		return;
-	}
-
-	game.timeline.update(delta);
-	game.emitter.update(delta/60);
-	game.ship.update(delta);
-
-	//Asteroids
-	for(var i = 0; i < game.asteroids.length; i++) {
-		var asteroid = game.asteroids[i];
-
-		asteroid.update(delta);
-
-		if (game.state == STATES.ALIVE && asteroid.collision(game.ship)) {;
-			shipHit();
-		}
-	}
-
-	// Bullets
-	bulletsLoop:
-	for(var i = game.bullets.length - 1; i >= 0; i--) {
-		game.bullets[i].update(delta);
-
-		if (game.bullets[i].age > game.bullets[i].lifespan) {
-			game.app.stage.removeChild(game.bullets[i].getGraphics());
-			game.bullets.splice(i, 1);
-		} else {
-			game.bullets[i].age += delta;
-
-			for (var j = game.asteroids.length - 1; j >= 0 ; j--) {
-				if (game.bullets[i].collision(game.asteroids[j])) {
-					game.app.stage.removeChild(game.bullets[i].getGraphics());
-					game.bullets.splice(i, 1);
-					game.app.stage.removeChild(game.asteroids[j].getGraphics());
-					var a = game.asteroids.splice(j, 1)[0];
-
-					if (a.type == ASTEROID_TYPE.BIG) {
-						var newAsteroids = createMiddleAsteroids(a);
-						 newAsteroids.forEach(function (na) {
-						 	game.app.stage.addChild(na.getGraphics());
-						 	game.asteroids.push(na);
-						 });
-						game.score += SCORES.BIG;
+	
+		// Bullets
+		bulletsLoop:
+		for(var i = this.bullets.length - 1; i >= 0; i--) {
+			this.bullets[i].update(delta);
+	
+			if (this.bullets[i].age > this.bullets[i].lifespan) {
+				this.app.stage.removeChild(this.bullets[i].getGraphics());
+				this.bullets.splice(i, 1);
+			} else {
+				this.bullets[i].age += delta;
+	
+				for (var j = this.asteroids.length - 1; j >= 0 ; j--) {
+					if (this.bullets[i].collision(this.asteroids[j])) {
+						this.app.stage.removeChild(this.bullets[i].getGraphics());
+						this.bullets.splice(i, 1);
+						this.app.stage.removeChild(this.asteroids[j].getGraphics());
+						var a = this.asteroids.splice(j, 1)[0];
+	
+						if (a.type == ASTEROID_TYPE.BIG) {
+							var newAsteroids = this.createMiddleAsteroids(a);
+							newAsteroids.forEach(function (na) {
+								 this.app.stage.addChild(na.getGraphics());
+								 this.asteroids.push(na);
+							}.bind(this));
+							this.score += SCORES.BIG;
+						}
+						else if (a.type == ASTEROID_TYPE.MIDDLE) {
+							var newAsteroids = this.createSmallAsteroids(a);
+							newAsteroids.forEach(function (a) {
+								this.app.stage.addChild(a.getGraphics());
+								this.asteroids.push(a);
+							}.bind(this));
+							this.score += SCORES.MIDDLE;
+						}
+						else if (a.type == ASTEROID_TYPE.SMALL) {
+							this.score += SCORES.SMALL;
+						}
+	
+						this.emitter.updateSpawnPos(a.x, a.y);
+						this.emitter.resetPositionTracking();
+						this.emitter.emit = true;
+	
+						this.updateScore();
+	
+						if (this.asteroids.length == 0) {
+							this.levelCompleted();
+						}
+	
+						continue bulletsLoop;
 					}
-					else if (a.type == ASTEROID_TYPE.MIDDLE) {
-						var newAsteroids = createSmallAsteroids(a);
-						newAsteroids.forEach(function (a) {
-							game.app.stage.addChild(a.getGraphics());
-							game.asteroids.push(a);
-						});
-						game.score += SCORES.MIDDLE;
-					}
-					else if (a.type == ASTEROID_TYPE.SMALL) {
-						game.score += SCORES.SMALL;
-					}
-
-					game.emitter.updateSpawnPos(a.x, a.y);
-					game.emitter.resetPositionTracking();
-					game.emitter.emit = true;
-
-					updateScore();
-
-					if (game.asteroids.length == 0) {
-						levelCompleted();
-					}
-
-					continue bulletsLoop;
 				}
 			}
 		}
 	}
-}
-
-function mainScreen(createAsteroids) {
-	game.state = STATES.MAINSCREEN;
-	game.ship.visible = false;
-
-	removeTitleText();
-
-	if (createAsteroids) {
-		removeAsteroids();
-		game.asteroids = createBigAsteroids(4);
-		for(var i = 0; i < game.asteroids.length; i++)
-			game.app.stage.addChild(game.asteroids[i].getGraphics());
+	
+	updateLives() {
+		if (!this.texts.lives) {
+			this.texts.lives = new PIXI.extras.BitmapText(this.lives.toString(), {font: this.font});
+			this.texts.lives.anchor = new PIXI.Point(1, 0);
+			this.texts.lives.x = 33;
+			this.texts.lives.y = 0;
+			this.texts.lives.zIndex = 1;
+		}
+		else {
+			this.texts.lives.text = this.lives.toString();
+		}
 	}
-
-	createCenterText('Press S to start')
-	createTitleText();
-}
-
-function startGame() {
-	game.level = 1;
-	game.score = 0;
-	game.lives = 3;
-	updateScore();
-	updateLives();
-	removeTitleText();
-	removeAsteroids();
-
-	var x = game.width / 2;
-	var y = game.height / 2;
-	var rotation = 0;
-	game.ship.x = x;
-	game.ship.y = y;
-	game.ship.rotation = rotation;
-
-	game.state = STATES.DEAD;
-
-	startLevel();
-}
-
-function levelCompleted() {
-	game.level++;
-	game.timeline.add(new TimelineEvent(startLevel,	120));
-}
-
-function startLevel() {
-	game.timeline.add(new TimelineEvent(
-		function () {
-			createCenterText('Level ' + game.level);
-
-			game.asteroids = createBigAsteroids(getAsteroidCount(game.level));
-			for(var i = 0; i < game.asteroids.length; i++)
-				game.app.stage.addChild(game.asteroids[i].getGraphics());
-		},
-		0
-	));
-
-	game.timeline.add(new TimelineEvent(
-		function () {
-			game.app.stage.removeChild(game.texts.center);
-			game.texts.center = null;
-
-			// TODO: Tarkista, että asteroidit ovat tarpeeksi kaukana aluksesta
-			if (game.state != STATES.ALIVE)
-				respawnShip();
-		},
-		180
-	));
-}
-
-function removeTitleText() {
-	if (game.texts.title) {
-		game.app.stage.removeChild(game.texts.title);
-		game.texts.title = null;
+	
+	shipHit() {
+		this.state = STATES.DEAD;
+		this.lives--;
+		this.updateLives();
+	
+		this.ship.stopAndHide();
+	
+		this.emitter.updateSpawnPos(this.ship.x, this.ship.y);
+		this.emitter.resetPositionTracking();
+		this.emitter.emit = true;
+	
+		if (this.lives > 0) {
+			this.timeline.add(new TimelineEvent(this.respawnShip.bind(this), 120));
+		}
+		else {
+			this.timeline.add(new TimelineEvent(this.gameOver.bind(this), 120));
+		}
 	}
-}
-
-function createTitleText() {
-	game.texts.title = new PIXI.extras.BitmapText('Asteroids', {font: game.font});
-	game.texts.title.x = Math.round((game.width - game.texts.title.width) / 2);
-	game.texts.title.y = 150;
-	game.texts.title.zIndex = 1;
-	game.app.stage.addChildAt(game.texts.title);
-}
-
-function createCenterText(text) {
-	if (game.texts.center) {
-		game.app.stage.removeChild(game.texts.center);
-		game.texts.center = null;
+	
+	gameOver() {
+		this.createCenterText('Game over');
+		this.timeline.add(new TimelineEvent(
+			function () { this.mainScreen(false); }.bind(this),
+			180
+		));
 	}
-
-	game.texts.center = new PIXI.extras.BitmapText(text, {font: game.font});
-	game.texts.center.x = Math.round((game.width - game.texts.center.width) / 2);
-	game.texts.center.y = Math.round((game.height - game.texts.center.height) / 2) - 15;
-	game.texts.center.zIndex = 1;
-	game.app.stage.addChildAt(game.texts.center);
-}
-
-function updateScore() {
-	if (!game.texts.score) {
-		game.texts.score = new PIXI.extras.BitmapText(game.score.toString(), {font: game.font});
-		game.texts.score.anchor = new PIXI.Point(1, 0);
-		game.texts.score.x = 785;
-		game.texts.score.y = 0;
-		game.texts.score.zIndex = 1;
+	
+	onKeyDown(key) {
+		console.log('onKeyDown', this.state);
+		if (this.state == STATES.ALIVE) {
+			if (key.keyCode == 38) {
+				if (!this.ship.acceleration) {
+					this.ship.acceleration = 0.055;
+	
+					this.ship.afterburner.setCurrentFrame(0);
+					this.ship.afterburner.play();
+				}
+			}
+			else if (key.keyCode == 37) {
+				this.ship.rotationDirection = -1;
+			}
+			else if (key.keyCode == 39) {
+				this.ship.rotationDirection = 1;
+			}
+			else if (key.keyCode == 83) {
+				this.tryCreateBullet();
+			}
+		}
+		else if (this.state == STATES.MAINSCREEN) {
+			if (key.keyCode == 83) {
+				this.startGame();
+			}
+		}
 	}
-	else {
-		game.texts.score.text = game.score.toString();
-	}
-}
-
-function updateLives() {
-	if (!game.texts.lives) {
-		game.texts.lives = new PIXI.extras.BitmapText(game.lives.toString(), {font: game.font});
-		game.texts.lives.anchor = new PIXI.Point(1, 0);
-		game.texts.lives.x = 33;
-		game.texts.lives.y = 0;
-		game.texts.lives.zIndex = 1;
-	}
-	else {
-		game.texts.lives.text = game.lives.toString();
-	}
-}
-
-function shipHit() {
-	game.state = STATES.DEAD;
-	game.lives--;
-	updateLives();
-
-	game.ship.stopAndHide();
-
-	game.emitter.updateSpawnPos(game.ship.x, game.ship.y);
-	game.emitter.resetPositionTracking();
-	game.emitter.emit = true;
-
-	if (game.lives > 0) {
-		game.timeline.add(new TimelineEvent(respawnShip, 120));
-	}
-	else {
-		game.timeline.add(new TimelineEvent(gameOver, 120));
-	}
-}
-
-function gameOver() {
-	createCenterText('Game over');
-	game.timeline.add(new TimelineEvent(
-		function () { mainScreen(false); },
-		180
-	));
-}
-
-function init() {
-	var loader = new PIXI.loaders.Loader();
-	loader.add('hyperspace', 'hyperspace.fnt');
-	loader.load(function (loader, resources) {
-		game.app = new PIXI.Application(game.width, game.height);
-		document.body.appendChild(game.app.view);
-
-		game.ship = new Ship(game.width / 2, game.height / 2, 0);
-		game.app.stage.addChild(game.ship.getGraphics());
-		game.app.stage.addChild(game.ship.afterburner.getGraphics());
-
-		mainScreen(true);
-
-		updateScore();
-		game.app.stage.addChildAt(game.texts.score);
-
-		updateLives()
-		game.app.stage.addChildAt(game.texts.lives);
-
-		game.bullets = [];
-
-		game.emitter = new PIXI.particles.Emitter(
-			game.app.stage,
-			[PIXI.Texture.fromImage('FFFFFF-1.png')],
-			game.emitterConfig
-		);
-		game.emitter.emit = false;
-
-		game.timeline = new Timeline();
-
-		game.app.ticker.add(function(delta) {
-			gameLoop(delta);
-		});
-
-		document.addEventListener('keydown', onKeyDown);
-		document.addEventListener('keyup', onKeyUp);
-
-		//test();
-	});
-}
-init();
-
-function test() {
-	game.a = createPolygon([-7,-19, -24,-2, -12,19, 7,11, 2,-17], 100, 100, Math.PI*0);
-	game.app.stage.addChild(game.a);
-
-	var c = new PIXI.Graphics();
-	c.lineStyle(1, 0xFFFFFF);  //(thickness, color)
-	c.drawCircle(game.width / 2, game.height / 2, 200);
-	c.endFill();
-	game.app.stage.addChild(c);
-
-	var p = new PIXI.Graphics();
-	p.lineStyle(1, 0xffffff, 1);
-	p.drawCircle(150, 150, 0);
-	game.app.stage.addChild(p)
-
-	var x;
-	var y;
-	for (x = 0; x < 800; x = x + 1) {
-		for (y = 0; y < 600; y = y + 1) {
-			if (SAT.pointInPolygon(new SAT.Vector(x, y), game.a.collisionPolygon)) p.drawCircle(x, y, 1);
+	
+	onKeyUp(key) {
+		if (this.state == STATES.ALIVE) {
+			if (key.keyCode == 38) {
+				this.ship.acceleration = 0;
+				this.ship.afterburner.stopAndHide();
+			}
+			if (key.keyCode == 37 && this.ship.rotationDirection == -1) {
+				this.ship.rotationDirection = 0;
+			}
+			else if (key.keyCode == 39 && this.ship.rotationDirection == 1) {
+				this.ship.rotationDirection = 0;
+			}
 		}
 	}
 
-	var p1 = new SAT.Polygon(new SAT.Vector(100, 100),[new SAT.Vector(50, 50), new SAT.Vector(150, 50), new SAT.Vector(150, 150), new SAT.Vector(50, 150)]);
-	var c1 = new SAT.Circle(new SAT.Vector(100,100), 100);
-	console.log(SAT.testPolygonCircle(p1, c1));
-	console.log(SAT.testCirclePolygon(c1, p1));
+	init() {
+		var loader = new PIXI.loaders.Loader();
+		loader.add('hyperspace', 'hyperspace.fnt');
+		loader.load(function(loader, resources) {
+			this.app = new PIXI.Application(width, height);
+			document.body.appendChild(this.app.view);
+	
+			this.ship = new Ship(width / 2, height / 2, 0);
+			this.app.stage.addChild(this.ship.getGraphics());
+			this.app.stage.addChild(this.ship.afterburner.getGraphics());
+	
+			this.mainScreen(true);
+	
+			this.updateScore();
+			this.app.stage.addChildAt(this.texts.score);
+	
+			this.updateLives()
+			this.app.stage.addChildAt(this.texts.lives);
+	
+			this.bullets = [];
+	
+			this.emitter = new PIXI.particles.Emitter(
+				this.app.stage,
+				[PIXI.Texture.fromImage('FFFFFF-1.png')],
+				emitterConfig
+			);
+			this.emitter.emit = false;
+	
+			this.timeline = new Timeline();
+	
+			this.app.ticker.add(function(delta) {
+				this.gameLoop(delta);
+			}.bind(this));
+	
+			document.addEventListener('keydown', this.onKeyDown.bind(this));
+			document.addEventListener('keyup', this.onKeyUp.bind(this));
+	
+			//test();
+		}.bind(this));
+	}
+}
+
+var width = 800;
+var height = 600;
+new Game();
+
+function warp(movingObject) {
+	if (movingObject.x > width)
+		movingObject.x -= width;
+	else if (movingObject.x < 0)
+		movingObject.x += width;
+
+	if (movingObject.y > height)
+		movingObject.y -= height;
+	else if (movingObject.y < 0)
+		movingObject.y += height;
 }
