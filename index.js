@@ -78,6 +78,30 @@ class AnimatedGraphics {
 		this.graphics.visible = false;
 	}
 
+	set x(x) {
+		this.graphics.x = x;
+	}
+
+	get x() {
+		return this.graphics.x;
+	}
+
+	set y(y) {
+		this.graphics.y = y;
+	}
+
+	get y() {
+		return this.graphics.y;
+	}
+
+	set rotation(rotation) {
+		this.graphics.rotation = rotation;
+	}
+
+	get rotation() {
+		return this.graphics.rotation;
+	}
+
 	stopAndHide() {
 		this.state = 0;
 		this.graphics.visible = false;
@@ -193,20 +217,14 @@ class Asteroid extends CollisionPolygonGraphics {
 	}
 
 	update(delta) {
-		this.graphics.x += this.speed.x * delta;
-		this.graphics.y += this.speed.y * delta;
-		warp(this.graphics);
-		this.collisionPolygon.pos.x = this.graphics.x;
-		this.collisionPolygon.pos.y = this.graphics.y;
+		this.x += this.speed.x * delta;
+		this.y += this.speed.y * delta;
+		warp(this);
 	}
 }
 
 class Ship extends CollisionPolygonGraphics {
 	constructor(x, y, rotation, speed, type) {
-		var x = width / 2;
-		var	y = height / 2;
-		var rotation = 0;
-
 		super([0,-17, -11,13, 11,13], x, y, rotation);
 		this.acceleration = 0;
 		this.speed = {x: 0, y: 0, rotation: 0.07};
@@ -225,6 +243,33 @@ class Ship extends CollisionPolygonGraphics {
 		});
 	}
 
+	set x(x) {
+		super.x = x;
+		this.afterburner.x = this.x;
+	}
+
+	get x() {
+		return super.x;
+	}
+
+	set y(y) {
+		super.y = y;
+		this.afterburner.y = this.y;
+	}
+
+	get y() {
+		return super.y;
+	}
+
+	set rotation(rotation) {
+		super.rotation = rotation;
+		this.afterburner.rotation = this.rotation;
+	}
+
+	get rotation() {
+		return super.rotation;
+	}
+
 	update (delta) {
 		//ship
 		if (this.acceleration != 0) {
@@ -237,25 +282,14 @@ class Ship extends CollisionPolygonGraphics {
 		this.speed.y *= 0.995;
 
 		if (this.rotationDirection)
-			this.graphics.rotation += this.speed.rotation * delta * this.rotationDirection;
+			this.rotation += this.speed.rotation * delta * this.rotationDirection;
 
-		if (this.speed.x != 0)
-			this.graphics.x += delta * this.speed.x;
-
-		if (this.speed.y != 0)
-			this.graphics.y -= delta * this.speed.y;
-
-		warp(this.graphics);
-
-		this.collisionPolygon.pos.x = this.graphics.x;
-		this.collisionPolygon.pos.y = this.graphics.y;
-		this.collisionPolygon.setAngle(this.graphics.rotation);
-
-		this.afterburner.graphics.x = this.graphics.x;
-		this.afterburner.graphics.y = this.graphics.y;
-		this.afterburner.graphics.rotation = this.graphics.rotation;
+		this.x += delta * this.speed.x;
+		this.y -= delta * this.speed.y;
 
 		this.afterburner.update();
+
+		warp(this);
 	}
 
 	stopAndHide() {
@@ -287,9 +321,17 @@ class CollisionPointGraphics {
 		this.collisionPoint.x = x;
 	}
 
+	get x() {
+		return this.graphics.x;
+	}
+
 	set y(y) {
 		this.graphics.y = y;
 		this.collisionPoint.y = y;
+	}
+
+	get y() {
+		return this.graphics.y;
 	}
 
 	getGraphics() {
@@ -306,7 +348,7 @@ class Bullet extends CollisionPointGraphics {
 
 	constructor (x, y, angle, distance) {
 		super(x, y);
-		console.log(this.lastBulletCreated);
+
 		this.x = x + Math.cos(angle + 0.5 * Math.PI) * (-distance);
 		this.y = y + Math.sin(angle + 0.5 * Math.PI) * (-distance);
 
@@ -320,11 +362,9 @@ class Bullet extends CollisionPointGraphics {
 	}
 
 	update (delta) {
-		this.graphics.x += delta * this.speed.x;
-		this.graphics.y += delta * this.speed.y;
-		warp(this.graphics);
-		this.collisionPoint.x = this.graphics.x;
-		this.collisionPoint.y = this.graphics.y;
+		this.x += delta * this.speed.x;
+		this.y += delta * this.speed.y;
+		warp(this);
 	}
 }
 
@@ -686,7 +726,6 @@ class Game {
 	}
 	
 	onKeyDown(key) {
-		console.log('onKeyDown', this.state);
 		if (this.state == STATES.ALIVE) {
 			if (key.keyCode == 38) {
 				if (!this.ship.acceleration) {
