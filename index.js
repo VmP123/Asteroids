@@ -219,7 +219,6 @@ class Asteroid extends CollisionPolygonGraphics {
 	update(delta) {
 		this.x += this.speed.x * delta;
 		this.y += this.speed.y * delta;
-		warp(this);
 	}
 }
 
@@ -288,8 +287,6 @@ class Ship extends CollisionPolygonGraphics {
 		this.y -= delta * this.speed.y;
 
 		this.afterburner.update();
-
-		warp(this);
 	}
 
 	stopAndHide() {
@@ -364,7 +361,6 @@ class Bullet extends CollisionPointGraphics {
 	update (delta) {
 		this.x += delta * this.speed.x;
 		this.y += delta * this.speed.y;
-		warp(this);
 	}
 }
 
@@ -401,6 +397,8 @@ class Timeline {
 
 class Game {
 	constructor() {
+		this.width = 800;
+		this.height = 600;
 		this.state = STATES.ALIVE;
 		this.font = '48px Hyperspace';
 		this.lastBulletCreated = Date.now();
@@ -426,13 +424,13 @@ class Game {
 		var borderSize = 100;
 		var y;
 
-		if (borderSize <= x && x <= (width - borderSize)) {
+		if (borderSize <= x && x <= (this.width - borderSize)) {
 			y = Math.random() * borderSize * 2
 			if (y >= borderSize)
-				y = y + (height - borderSize * 2)
+				y = y + (this.height - borderSize * 2)
 		}
 		else
-			y = Math.random() * height;
+			y = Math.random() * this.height;
 	
 		return Math.floor(y);
 	}
@@ -479,8 +477,8 @@ class Game {
 	}
 
 	respawnShip() {
-		this.ship.x = width / 2;
-		this.ship.y = height / 2;
+		this.ship.x = this.width / 2;
+		this.ship.y = this.height / 2;
 		this.ship.rotation = 0;
 	
 		this.ship.visible = true;
@@ -527,8 +525,8 @@ class Game {
 		this.removeTitleText();
 		this.removeAsteroids();
 	
-		var x = width / 2;
-		var y = height / 2;
+		var x = this.width / 2;
+		var y = this.height / 2;
 		var rotation = 0;
 		this.ship.x = x;
 		this.ship.y = y;
@@ -578,7 +576,7 @@ class Game {
 	
 	createTitleText() {
 		this.texts.title = new PIXI.extras.BitmapText('Asteroids', {font: this.font});
-		this.texts.title.x = Math.round((width - this.texts.title.width) / 2);
+		this.texts.title.x = Math.round((this.width - this.texts.title.width) / 2);
 		this.texts.title.y = 150;
 		this.texts.title.zIndex = 1;
 		this.app.stage.addChildAt(this.texts.title);
@@ -591,8 +589,8 @@ class Game {
 		}
 	
 		this.texts.center = new PIXI.extras.BitmapText(text, {font: this.font});
-		this.texts.center.x = Math.round((width - this.texts.center.width) / 2);
-		this.texts.center.y = Math.round((height - this.texts.center.height) / 2) - 15;
+		this.texts.center.x = Math.round((this.width - this.texts.center.width) / 2);
+		this.texts.center.y = Math.round((this.height - this.texts.center.height) / 2) - 15;
 		this.texts.center.zIndex = 1;
 		this.app.stage.addChildAt(this.texts.center);
 	}
@@ -608,6 +606,28 @@ class Game {
 		else {
 			this.texts.score.text = this.score.toString();
 		}
+	}
+
+	warpAll() {
+		this.warp(this.ship);
+		this.asteroids.forEach(function (asteroid) {
+			this.warp(asteroid);
+		}.bind(this));
+		this.bullets.forEach(function (bullet) {
+			this.warp(bullet);
+		}.bind(this));
+	}
+
+	warp(movingObject) {
+		if (movingObject.x > this.width)
+			movingObject.x -= this.width;
+		else if (movingObject.x < 0)
+			movingObject.x += this.width;
+	
+		if (movingObject.y > this.height)
+			movingObject.y -= this.height;
+		else if (movingObject.y < 0)
+			movingObject.y += this.height;
 	}
 
 	gameLoop(delta) {
@@ -683,6 +703,8 @@ class Game {
 				}
 			}
 		}
+
+		this.warpAll();
 	}
 	
 	updateLives() {
@@ -771,10 +793,10 @@ class Game {
 		var loader = new PIXI.loaders.Loader();
 		loader.add('hyperspace', 'hyperspace.fnt');
 		loader.load(function(loader, resources) {
-			this.app = new PIXI.Application(width, height);
+			this.app = new PIXI.Application(this.width, this.height);
 			document.body.appendChild(this.app.view);
 	
-			this.ship = new Ship(width / 2, height / 2, 0);
+			this.ship = new Ship(this.width / 2, this.height / 2, 0);
 			this.app.stage.addChild(this.ship.getGraphics());
 			this.app.stage.addChild(this.ship.afterburner.getGraphics());
 	
@@ -809,18 +831,4 @@ class Game {
 	}
 }
 
-var width = 800;
-var height = 600;
 new Game();
-
-function warp(movingObject) {
-	if (movingObject.x > width)
-		movingObject.x -= width;
-	else if (movingObject.x < 0)
-		movingObject.x += width;
-
-	if (movingObject.y > height)
-		movingObject.y -= height;
-	else if (movingObject.y < 0)
-		movingObject.y += height;
-}
