@@ -579,7 +579,7 @@ class Game {
 		this.texts.title.x = Math.round((this.width - this.texts.title.width) / 2);
 		this.texts.title.y = 150;
 		this.texts.title.zIndex = 1;
-		this.app.stage.addChildAt(this.texts.title);
+		this.app.stage.addChild(this.texts.title);
 	}
 	
 	createCenterText(text) {
@@ -592,7 +592,7 @@ class Game {
 		this.texts.center.x = Math.round((this.width - this.texts.center.width) / 2);
 		this.texts.center.y = Math.round((this.height - this.texts.center.height) / 2) - 15;
 		this.texts.center.zIndex = 1;
-		this.app.stage.addChildAt(this.texts.center);
+		this.app.stage.addChild(this.texts.center);
 	}
 	
 	updateScore() {
@@ -803,16 +803,21 @@ class Game {
 			this.mainScreen(true);
 	
 			this.updateScore();
-			this.app.stage.addChildAt(this.texts.score);
+			this.app.stage.addChild(this.texts.score);
 	
 			this.updateLives()
-			this.app.stage.addChildAt(this.texts.lives);
+			this.app.stage.addChild(this.texts.lives);
 	
 			this.bullets = [];
 	
+			var pixel = new PIXI.Graphics();
+			pixel.lineStyle(1, 0xffffff, 1);
+			pixel.moveTo(0,1);
+			pixel.lineTo(0,0);
+
 			this.emitter = new PIXI.particles.Emitter(
 				this.app.stage,
-				[PIXI.Texture.fromImage('FFFFFF-1.png')],
+				[pixel.generateCanvasTexture()],
 				emitterConfig
 			);
 			this.emitter.emit = false;
@@ -825,8 +830,6 @@ class Game {
 	
 			document.addEventListener('keydown', this.onKeyDown.bind(this));
 			document.addEventListener('keyup', this.onKeyUp.bind(this));
-	
-			//test();
 		}.bind(this));
 	}
 }
