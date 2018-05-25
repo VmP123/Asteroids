@@ -1,5 +1,5 @@
 import CollisionPolygonGraphics from './CollisionPolygonGraphics.js';
-import { ASTEROID_TYPE } from './enums.js';
+import { ASTEROID_TYPE } from '../enums.js';
 
 export default class Asteroid extends CollisionPolygonGraphics {
 	constructor(x, y, rotation, speed, type) {

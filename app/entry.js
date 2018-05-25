@@ -1,5 +1,4 @@
 import './index.html';
-
-import Game from './Game.js'
+import Game from './classes/Game.js'
 
 new Game();

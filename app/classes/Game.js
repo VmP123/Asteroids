@@ -6,7 +6,7 @@ import Ship from './Ship.js';
 import Bullet from './Bullet.js';
 import TimelineEvent from './TimelineEvent.js';
 import Timeline from './Timeline.js';
-import {STATES, ASTEROID_TYPE, SCORES} from './enums.js';
+import {STATES, ASTEROID_TYPE, SCORES} from '../enums.js';
 
 export default class Game {
 	constructor() {
