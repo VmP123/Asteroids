@@ -164,6 +164,7 @@ export default class Game {
 		this.state = STATES.MAINSCREEN;
 		this.ship.visible = false;
 
+		this.removeCenterText();
 		this.removeTitleText();
 
 		if (createAsteroids) {
@@ -206,6 +207,7 @@ export default class Game {
 	startLevel() {
 		this.timeline.add(new TimelineEvent(
 			function () {
+				this.removeCenterText();
 				this.createCenterText('Level ' + this.level);
 
 				this.asteroids = this.createBigAsteroids(this.getAsteroidCount(this.level));
@@ -217,8 +219,7 @@ export default class Game {
 
 		this.timeline.add(new TimelineEvent(
 			function () {
-				this.app.stage.removeChild(this.texts.center);
-				this.texts.center = null;
+				this.removeCenterText()
 
 				// TODO: Tarkista, että asteroidit ovat tarpeeksi kaukana aluksesta
 				if (this.state != STATES.ALIVE)
@@ -243,11 +244,15 @@ export default class Game {
 		this.app.stage.addChildAt(this.texts.title);
 	}
 
-	createCenterText(text) {
+	removeCenterText() {
 		if (this.texts.center) {
 			this.app.stage.removeChild(this.texts.center);
 			this.texts.center = null;
 		}
+	}
+
+	createCenterText(text) {
+		this.removeCenterText();
 
 		this.texts.center = new PIXI.extras.BitmapText(text, {font: this.font});
 		this.texts.center.x = Math.round((this.width - this.texts.center.width) / 2);
@@ -348,10 +353,7 @@ export default class Game {
 							this.score += SCORES.SMALL;
 						}
 
-						this.emitter.updateSpawnPos(a.x, a.y);
-						this.emitter.resetPositionTracking();
-						this.emitter.emit = true;
-
+						this.explosion(a.x, a.y);
 						this.updateScore();
 
 						if (this.asteroids.length == 0) {
@@ -365,6 +367,12 @@ export default class Game {
 		}
 
 		this.warpAll();
+	}
+
+	explosion(x, y) {
+		this.emitter.updateSpawnPos(x, y);
+		this.emitter.resetPositionTracking();
+		this.emitter.emit = true;
 	}
 
 	updateLives() {
@@ -387,9 +395,7 @@ export default class Game {
 
 		this.ship.stopAndHide();
 
-		this.emitter.updateSpawnPos(this.ship.x, this.ship.y);
-		this.emitter.resetPositionTracking();
-		this.emitter.emit = true;
+		this.explosion(this.ship.x, this.ship.y);
 
 		if (this.lives > 0) {
 			this.timeline.add(new TimelineEvent(this.respawnShip.bind(this), 120));
@@ -400,6 +406,7 @@ export default class Game {
 	}
 
 	gameOver() {
+		this.removeCenterText();
 		this.createCenterText('Game over');
 		this.timeline.add(new TimelineEvent(
 			function () { this.mainScreen(false); }.bind(this),
@@ -452,7 +459,7 @@ export default class Game {
 	init() {
 		var loader = new PIXI.loaders.Loader();
 		loader.add('hyperspace', 'hyperspace.fnt');
-		loader.load(function(loader, resources) {
+		loader.load(function() {
 			this.app = new PIXI.Application(this.width, this.height);
 			document.body.appendChild(this.app.view);
 
