@@ -164,7 +164,6 @@ export default class Game {
 		this.state = STATES.MAINSCREEN;
 		this.ship.visible = false;
 
-		this.removeCenterText();
 		this.removeTitleText();
 
 		if (createAsteroids) {
@@ -207,7 +206,6 @@ export default class Game {
 	startLevel() {
 		this.timeline.add(new TimelineEvent(
 			function () {
-				this.removeCenterText();
 				this.createCenterText('Level ' + this.level);
 
 				this.asteroids = this.createBigAsteroids(this.getAsteroidCount(this.level));
@@ -406,7 +404,6 @@ export default class Game {
 	}
 
 	gameOver() {
-		this.removeCenterText();
 		this.createCenterText('Game over');
 		this.timeline.add(new TimelineEvent(
 			function () { this.mainScreen(false); }.bind(this),
@@ -419,9 +416,6 @@ export default class Game {
 			if (key.keyCode == 38) {
 				if (!this.ship.acceleration) {
 					this.ship.acceleration = 0.055;
-
-					this.ship.afterburner.setCurrentFrame(0);
-					this.ship.afterburner.play();
 				}
 			}
 			else if (key.keyCode == 37) {
@@ -445,7 +439,6 @@ export default class Game {
 		if (this.state == STATES.ALIVE) {
 			if (key.keyCode == 38) {
 				this.ship.acceleration = 0;
-				this.ship.afterburner.stopAndHide();
 			}
 			if (key.keyCode == 37 && this.ship.rotationDirection == -1) {
 				this.ship.rotationDirection = 0;

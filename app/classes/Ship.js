@@ -48,6 +48,23 @@ export default class Ship extends CollisionPolygonGraphics {
 		return super.rotation;
 	}
 
+	set acceleration(acceleration) {
+		this._acceleration = acceleration;
+
+		if (this.afterburner) {
+			if (acceleration != 0) {
+				this.afterburner.setCurrentFrame(0);
+				this.afterburner.play();
+			}
+			else
+				this.afterburner.stopAndHide();
+		}
+	}
+
+	get acceleration() {
+		return this._acceleration;
+	}
+
 	update (delta) {
 		//ship
 		if (this.acceleration != 0) {
