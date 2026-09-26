@@ -86,38 +86,42 @@ export default class Game {
 	getRandomEdgeSpawn() {
 		var edge = Math.floor(Math.random() * 4); // 0: ylä, 1: oikea, 2: ala, 3: vasen
 		var spawnOffset = 45; // Asteroidi syntyy kokonaan kentän ulkopuolella
-		var x, y, speedX, speedY;
+		var x, y;
 
-		var forwardSpeed = 0.8 + Math.random() * 1.4;
-		var sideSpeed = (Math.random() * 3) - 1.5;
-
+		// Varmistetaan, että syntypiste ei ole aivan nurkassa
 		switch (edge) {
-			case 0: // Ylhäältä alas kentälle
-				x = Math.random() * this.width;
+			case 0: // Ylhäältä
+				x = spawnOffset + Math.random() * (this.width - 2 * spawnOffset);
 				y = -spawnOffset;
-				speedX = sideSpeed;
-				speedY = forwardSpeed;
 				break;
-			case 1: // Oikealta vasemmalle kentälle
+			case 1: // Oikealta
 				x = this.width + spawnOffset;
-				y = Math.random() * this.height;
-				speedX = -forwardSpeed;
-				speedY = sideSpeed;
+				y = spawnOffset + Math.random() * (this.height - 2 * spawnOffset);
 				break;
-			case 2: // Alhaalta ylös kentälle
-				x = Math.random() * this.width;
+			case 2: // Alhaalta
+				x = spawnOffset + Math.random() * (this.width - 2 * spawnOffset);
 				y = this.height + spawnOffset;
-				speedX = sideSpeed;
-				speedY = -forwardSpeed;
 				break;
-			case 3: // Vasemmalta oikealle kentälle
+			case 3: // Vasemmalta
 			default:
 				x = -spawnOffset;
-				y = Math.random() * this.height;
-				speedX = forwardSpeed;
-				speedY = sideSpeed;
+				y = spawnOffset + Math.random() * (this.height - 2 * spawnOffset);
 				break;
 		}
+
+		// Kohdistetaan suunta kohti kentän sisäaluetta, jotta asteroidi saapuu taatusti kokonaan kentälle
+		var innerMarginX = 120;
+		var innerMarginY = 100;
+		var targetX = innerMarginX + Math.random() * (this.width - 2 * innerMarginX);
+		var targetY = innerMarginY + Math.random() * (this.height - 2 * innerMarginY);
+
+		var dx = targetX - x;
+		var dy = targetY - y;
+		var distance = Math.sqrt(dx * dx + dy * dy);
+
+		var speedMagnitude = 0.8 + Math.random() * 1.4;
+		var speedX = (dx / distance) * speedMagnitude;
+		var speedY = (dy / distance) * speedMagnitude;
 
 		return {
 			x: Math.floor(x),
