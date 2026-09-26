@@ -44,6 +44,15 @@ export default class CollisionPointGraphics {
 	}
 
 	collision(collisionPolygonGraphics) {
+		if (collisionPolygonGraphics.getCollisionPolygons) {
+			var polys = collisionPolygonGraphics.getCollisionPolygons();
+			for (var i = 0; i < polys.length; i++) {
+				if (pointInPolygon(this.collisionPoint, polys[i])) {
+					return true;
+				}
+			}
+			return false;
+		}
 		return pointInPolygon(this.collisionPoint, collisionPolygonGraphics.getCollisionPolygon());
 	}
 }

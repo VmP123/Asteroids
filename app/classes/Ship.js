@@ -2,8 +2,14 @@ import CollisionPolygonGraphics from './CollisionPolygonGraphics.js';
 import AnimatedGraphics from './AnimatedGraphics.js'
 
 export default class Ship extends CollisionPolygonGraphics {
-	constructor(x, y, rotation) {
-		super([0,-17, -11,13, 11,13], x, y, rotation);
+	constructor(x, y, rotation, options = {}) {
+		super([0,-17, -11,13, 11,13], x, y, rotation, {
+			wrapToroidal: true,
+			wrapWidth: options.wrapWidth || 800,
+			wrapHeight: options.wrapHeight || 600,
+			radius: 25,
+			hasEnteredField: true
+		});
 		this.acceleration = 0;
 		this.speed = {x: 0, y: 0, rotation: 0.07};
 
@@ -18,12 +24,23 @@ export default class Ship extends CollisionPolygonGraphics {
 			if (frame != 0 && frame % 5 == 0) {
 				this.graphics.visible = !this.graphics.visible;
 			}
+		}, undefined, {
+			wrapToroidal: true,
+			wrapWidth: options.wrapWidth || 800,
+			wrapHeight: options.wrapHeight || 600,
+			radius: 25
 		});
+
+		this.afterburner.x = this.x;
+		this.afterburner.y = this.y;
+		this.afterburner.rotation = this.rotation;
 	}
 
 	set x(x) {
 		super.x = x;
-		this.afterburner.x = this.x;
+		if (this.afterburner) {
+			this.afterburner.x = this.x;
+		}
 	}
 
 	get x() {
@@ -32,7 +49,9 @@ export default class Ship extends CollisionPolygonGraphics {
 
 	set y(y) {
 		super.y = y;
-		this.afterburner.y = this.y;
+		if (this.afterburner) {
+			this.afterburner.y = this.y;
+		}
 	}
 
 	get y() {
@@ -41,7 +60,9 @@ export default class Ship extends CollisionPolygonGraphics {
 
 	set rotation(rotation) {
 		super.rotation = rotation;
-		this.afterburner.rotation = this.rotation;
+		if (this.afterburner) {
+			this.afterburner.rotation = this.rotation;
+		}
 	}
 
 	get rotation() {
@@ -68,8 +89,8 @@ export default class Ship extends CollisionPolygonGraphics {
 	update (delta) {
 		//ship
 		if (this.acceleration != 0) {
-			this.speed.x += Math.sin(this.graphics.rotation) * this.acceleration;
-			this.speed.y += Math.cos(this.graphics.rotation) * this.acceleration;
+			this.speed.x += Math.sin(this.rotation) * this.acceleration;
+			this.speed.y += Math.cos(this.rotation) * this.acceleration;
 		}
 
 		// Friction

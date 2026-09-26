@@ -2,7 +2,7 @@ import CollisionPolygonGraphics from './CollisionPolygonGraphics.js';
 import { ASTEROID_TYPE } from '../enums.js';
 
 export default class Asteroid extends CollisionPolygonGraphics {
-	constructor(x, y, rotation, speed, type) {
+	constructor(x, y, rotation, speed, type, options = {}) {
 		var points;
 
 		if (type === ASTEROID_TYPE.BIG)
@@ -12,7 +12,12 @@ export default class Asteroid extends CollisionPolygonGraphics {
 		else if (type === ASTEROID_TYPE.SMALL)
 			points = [-8,-8, -7,10, 7,8, 9,-9, 0,-13];
 
-		super(points, x, y, rotation);
+		super(points, x, y, rotation, {
+			wrapToroidal: true,
+			wrapWidth: 800,
+			wrapHeight: 600,
+			hasEnteredField: options.hasEnteredField !== undefined ? options.hasEnteredField : true
+		});
 		this.speed = speed;
 		this.type = type;
 	}

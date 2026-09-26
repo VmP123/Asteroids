@@ -83,44 +83,80 @@ export default class Game {
 		this.asteroids = [];
 	}
 
-	getRandomY(x) {
-		var borderSize = 100;
-		var y;
+	getRandomEdgeSpawn() {
+		var edge = Math.floor(Math.random() * 4); // 0: ylä, 1: oikea, 2: ala, 3: vasen
+		var spawnOffset = 45; // Asteroidi syntyy kokonaan kentän ulkopuolella
+		var x, y, speedX, speedY;
 
-		if (borderSize <= x && x <= (this.width - borderSize)) {
-			y = Math.random() * borderSize * 2
-			if (y >= borderSize)
-				y = y + (this.height - borderSize * 2)
+		var forwardSpeed = 0.8 + Math.random() * 1.4;
+		var sideSpeed = (Math.random() * 3) - 1.5;
+
+		switch (edge) {
+			case 0: // Ylhäältä alas kentälle
+				x = Math.random() * this.width;
+				y = -spawnOffset;
+				speedX = sideSpeed;
+				speedY = forwardSpeed;
+				break;
+			case 1: // Oikealta vasemmalle kentälle
+				x = this.width + spawnOffset;
+				y = Math.random() * this.height;
+				speedX = -forwardSpeed;
+				speedY = sideSpeed;
+				break;
+			case 2: // Alhaalta ylös kentälle
+				x = Math.random() * this.width;
+				y = this.height + spawnOffset;
+				speedX = sideSpeed;
+				speedY = -forwardSpeed;
+				break;
+			case 3: // Vasemmalta oikealle kentälle
+			default:
+				x = -spawnOffset;
+				y = Math.random() * this.height;
+				speedX = forwardSpeed;
+				speedY = sideSpeed;
+				break;
 		}
-		else
-			y = Math.random() * this.height;
 
-		return Math.floor(y);
+		return {
+			x: Math.floor(x),
+			y: Math.floor(y),
+			speed: { x: speedX, y: speedY }
+		};
 	}
 
 	createBigAsteroids(count) {
 		var asteroids = [];
 		var centerX = this.width / 2;
 		var centerY = this.height / 2;
+		var shipX = (this.ship && this.ship.getGraphics().visible) ? this.ship.x : centerX;
+		var shipY = (this.ship && this.ship.getGraphics().visible) ? this.ship.y : centerY;
 		var minDistance = 180;
 
 		for(var i = 0; i < count; i++) {
-			var x, y, dist;
+			var spawn, distCenter, distShip;
 			var attempts = 0;
 			do {
-				x = Math.floor(Math.random() * this.width);
-				y = this.getRandomY(x);
-				var dx = x - centerX;
-				var dy = y - centerY;
-				dist = Math.sqrt(dx * dx + dy * dy);
+				spawn = this.getRandomEdgeSpawn();
+
+				var dxC = spawn.x - centerX;
+				var dyC = spawn.y - centerY;
+				distCenter = Math.sqrt(dxC * dxC + dyC * dyC);
+
+				var dxS = spawn.x - shipX;
+				var dyS = spawn.y - shipY;
+				distShip = Math.sqrt(dxS * dxS + dyS * dyS);
+
 				attempts++;
-			} while (dist < minDistance && attempts < 100);
+			} while ((distCenter < minDistance || distShip < minDistance) && attempts < 100);
 
 			var rotation = 2 * Math.PI * Math.random();
-			var speed = {x: (Math.random() * 4) - 2, y: (Math.random() * 4) - 2};
 			var type = ASTEROID_TYPE.BIG;
 
-			var a = new Asteroid(x, y, rotation, speed, type);
+			var a = new Asteroid(spawn.x, spawn.y, rotation, spawn.speed, type, {
+				hasEnteredField: false
+			});
 
 			asteroids.push(a);
 		}
@@ -242,33 +278,28 @@ export default class Game {
 
 	levelCompleted() {
 		this.level++;
-		this.state = STATES.DEAD;
-		this.ship.stopAndHide();
 		this.timeline.add(new TimelineEvent(this.startLevel.bind(this), 120));
 	}
 
 	startLevel() {
-		this.state = STATES.DEAD;
-		this.ship.stopAndHide();
-
-		this.timeline.add(new TimelineEvent(
-			function () {
-				this.createCenterText('Level ' + this.level);
-
-				this.asteroids = this.createBigAsteroids(this.getAsteroidCount(this.level));
-				for(var i = 0; i < this.asteroids.length; i++)
-					this.app.stage.addChild(this.asteroids[i].getGraphics());
-			}.bind(this),
-			0
-		));
+		this.createCenterText('Level ' + this.level);
 
 		this.timeline.add(new TimelineEvent(
 			function () {
 				this.removeCenterText();
-				this.tryRespawnShip();
+				this.spawnNextWave();
 			}.bind(this),
-			180
+			120
 		));
+	}
+
+	spawnNextWave() {
+		this.asteroids = this.createBigAsteroids(this.getAsteroidCount(this.level));
+		for(var i = 0; i < this.asteroids.length; i++)
+			this.app.stage.addChild(this.asteroids[i].getGraphics());
+
+		if (this.state != STATES.ALIVE)
+			this.tryRespawnShip();
 	}
 
 	removeTitleText() {
@@ -326,6 +357,10 @@ export default class Game {
 	}
 
 	warp(movingObject) {
+		if (movingObject.hasEnteredField === false) {
+			return;
+		}
+
 		if (movingObject.x > this.width)
 			movingObject.x -= this.width;
 		else if (movingObject.x < 0)
@@ -501,7 +536,10 @@ export default class Game {
 		document.body.appendChild(this.app.view);
 		this.updateDimensions();
 
-		this.ship = new Ship(this.width / 2, this.height / 2, 0);
+		this.ship = new Ship(this.width / 2, this.height / 2, 0, {
+			wrapWidth: this.width,
+			wrapHeight: this.height
+		});
 		this.app.stage.addChild(this.ship.getGraphics());
 		this.app.stage.addChild(this.ship.afterburner.getGraphics());
 
