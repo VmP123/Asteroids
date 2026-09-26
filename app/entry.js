@@ -1,4 +1,3 @@
-import './index.html';
-import Game from './classes/Game.js'
+import Game from './classes/Game.js';
 
 new Game();
