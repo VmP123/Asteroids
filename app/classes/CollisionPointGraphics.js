@@ -44,15 +44,35 @@ export default class CollisionPointGraphics {
 	}
 
 	collision(collisionPolygonGraphics) {
+		var r = collisionPolygonGraphics.radius || 0;
+		var rSq = r * r;
+
 		if (collisionPolygonGraphics.getCollisionPolygons) {
 			var polys = collisionPolygonGraphics.getCollisionPolygons();
 			for (var i = 0; i < polys.length; i++) {
-				if (pointInPolygon(this.collisionPoint, polys[i])) {
+				var poly = polys[i];
+				if (rSq > 0) {
+					var dx = this.collisionPoint.x - poly.pos.x;
+					var dy = this.collisionPoint.y - poly.pos.y;
+					if (dx * dx + dy * dy > rSq) {
+						continue;
+					}
+				}
+				if (pointInPolygon(this.collisionPoint, poly)) {
 					return true;
 				}
 			}
 			return false;
 		}
-		return pointInPolygon(this.collisionPoint, collisionPolygonGraphics.getCollisionPolygon());
+
+		var singlePoly = collisionPolygonGraphics.getCollisionPolygon();
+		if (rSq > 0) {
+			var dX = this.collisionPoint.x - singlePoly.pos.x;
+			var dY = this.collisionPoint.y - singlePoly.pos.y;
+			if (dX * dX + dY * dY > rSq) {
+				return false;
+			}
+		}
+		return pointInPolygon(this.collisionPoint, singlePoly);
 	}
 }

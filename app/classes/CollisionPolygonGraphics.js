@@ -31,6 +31,7 @@ export default class CollisionPolygonGraphics {
 		this._rotation = rotation;
 
 		this.collisionPolygon = new Polygon(new Vector(0, 0), this.createVectors(points));
+		this._activePolygons = [this.collisionPolygon];
 
 		if (this.wrapToroidal) {
 			this.container = new Container();
@@ -84,6 +85,9 @@ export default class CollisionPolygonGraphics {
 		this.collisionPolygon.pos.y = y;
 		this.collisionPolygon.setAngle(rot);
 
+		this._activePolygons.length = 0;
+		this._activePolygons.push(this.collisionPolygon);
+
 		if (!this.wrapToroidal) {
 			return;
 		}
@@ -126,6 +130,7 @@ export default class CollisionPolygonGraphics {
 			this.ghostPolygonX.pos.x = x + dx;
 			this.ghostPolygonX.pos.y = y;
 			this.ghostPolygonX.setAngle(rot);
+			this._activePolygons.push(this.ghostPolygonX);
 		} else {
 			this.ghostX.visible = false;
 		}
@@ -139,6 +144,7 @@ export default class CollisionPolygonGraphics {
 			this.ghostPolygonY.pos.x = x;
 			this.ghostPolygonY.pos.y = y + dy;
 			this.ghostPolygonY.setAngle(rot);
+			this._activePolygons.push(this.ghostPolygonY);
 		} else {
 			this.ghostY.visible = false;
 		}
@@ -152,6 +158,7 @@ export default class CollisionPolygonGraphics {
 			this.ghostPolygonCorner.pos.x = x + dx;
 			this.ghostPolygonCorner.pos.y = y + dy;
 			this.ghostPolygonCorner.setAngle(rot);
+			this._activePolygons.push(this.ghostPolygonCorner);
 		} else {
 			this.ghostCorner.visible = false;
 		}
@@ -201,28 +208,46 @@ export default class CollisionPolygonGraphics {
 	}
 
 	getCollisionPolygons() {
-		var polys = [this.collisionPolygon];
-		if (this.wrapToroidal) {
-			if (this.ghostX && this.ghostX.visible) {
-				polys.push(this.ghostPolygonX);
-			}
-			if (this.ghostY && this.ghostY.visible) {
-				polys.push(this.ghostPolygonY);
-			}
-			if (this.ghostCorner && this.ghostCorner.visible) {
-				polys.push(this.ghostPolygonCorner);
-			}
-		}
-		return polys;
+		return this._activePolygons;
 	}
 
 	collision(another) {
-		var myPolys = this.getCollisionPolygons();
-		var otherPolys = another.getCollisionPolygons ? another.getCollisionPolygons() : [another.getCollisionPolygon()];
+		var myPolys = this._activePolygons;
+		var otherPolys = another.getCollisionPolygons ? another.getCollisionPolygons() : null;
+		var rA = this.radius;
+		var rB = another.radius || 0;
+		var maxDist = rA + rB;
+		var maxDistSq = maxDist * maxDist;
 
-		for (var i = 0; i < myPolys.length; i++) {
-			for (var j = 0; j < otherPolys.length; j++) {
-				if (testPolygonPolygon(myPolys[i], otherPolys[j])) {
+		if (otherPolys) {
+			for (var i = 0; i < myPolys.length; i++) {
+				var pA = myPolys[i];
+				for (var j = 0; j < otherPolys.length; j++) {
+					var pB = otherPolys[j];
+					if (maxDistSq > 0) {
+						var dx = pA.pos.x - pB.pos.x;
+						var dy = pA.pos.y - pB.pos.y;
+						if (dx * dx + dy * dy > maxDistSq) {
+							continue;
+						}
+					}
+					if (testPolygonPolygon(pA, pB)) {
+						return true;
+					}
+				}
+			}
+		} else {
+			var singlePoly = another.getCollisionPolygon();
+			for (var k = 0; k < myPolys.length; k++) {
+				var polyA = myPolys[k];
+				if (maxDistSq > 0) {
+					var dX = polyA.pos.x - singlePoly.pos.x;
+					var dY = polyA.pos.y - singlePoly.pos.y;
+					if (dX * dX + dY * dY > maxDistSq) {
+						continue;
+					}
+				}
+				if (testPolygonPolygon(polyA, singlePoly)) {
 					return true;
 				}
 			}
