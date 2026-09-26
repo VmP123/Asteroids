@@ -2,16 +2,23 @@ import { Graphics } from 'pixi.js';
 import { Vector, pointInPolygon } from 'sat';
 
 export default class CollisionPointGraphics {
-	constructor (x, y) {
-		this.graphics = new Graphics();
+	constructor (x, y, scale = 1) {
+		this.graphics = new Graphics(true);
 		this.graphics.lineStyle(1, 0xffffff, 1);
 		this.graphics.moveTo(0,1);
 		this.graphics.lineTo(0,0);
 
 		this.graphics.x = x;
 		this.graphics.y = y;
+		this.setScale(scale);
 
 		this.collisionPoint = new Vector(x, y);
+	}
+
+	setScale(scale) {
+		if (scale && scale > 0) {
+			this.graphics.scale.set(1 / scale, 1 / scale);
+		}
 	}
 
 	set x(x) {

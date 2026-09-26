@@ -2,7 +2,7 @@ import { Graphics } from 'pixi.js';
 
 export default class AnimatedGraphics {
 	constructor(init, animate, lastFrame) {
-		this.graphics = new Graphics();
+		this.graphics = new Graphics(true);
 		this.currentFrame = 0;
 		this.lastFrame = lastFrame;
 		this.animate = animate;

@@ -1,17 +1,19 @@
 import * as PIXI from 'pixi.js';
-import * as particles from 'pixi-particles';
+import 'pixi-particles';
 
 import Asteroid from './Asteroid.js';
 import Ship from './Ship.js';
 import Bullet from './Bullet.js';
 import TimelineEvent from './TimelineEvent.js';
 import Timeline from './Timeline.js';
+import VectorText from './VectorText.js';
 import {STATES, ASTEROID_TYPE, SCORES} from '../enums.js';
 
 export default class Game {
 	constructor() {
 		this.width = 800;
 		this.height = 600;
+		this.scale = 1;
 		this.state = STATES.ALIVE;
 		this.font = '48px Hyperspace';
 		this.lastBulletCreated = Date.now();
@@ -148,7 +150,7 @@ export default class Game {
 
 	tryCreateBullet() {
 		if (Date.now() - this.lastBulletCreated > this.bulletDelay) {
-			var bullet = new Bullet(this.ship.x, this.ship.y, this.ship.rotation, 17);
+			var bullet = new Bullet(this.ship.x, this.ship.y, this.ship.rotation, 17, this.scale);
 			this.app.stage.addChild(bullet.getGraphics());
 			this.bullets.push(bullet);
 
@@ -235,7 +237,7 @@ export default class Game {
 	}
 
 	createTitleText() {
-		this.texts.title = new PIXI.extras.BitmapText('Asteroids', {font: this.font});
+		this.texts.title = new VectorText('Asteroids', {font: this.font});
 		this.texts.title.x = Math.round((this.width - this.texts.title.width) / 2);
 		this.texts.title.y = 150;
 		this.texts.title.zIndex = 1;
@@ -252,7 +254,7 @@ export default class Game {
 	createCenterText(text) {
 		this.removeCenterText();
 
-		this.texts.center = new PIXI.extras.BitmapText(text, {font: this.font});
+		this.texts.center = new VectorText(text, {font: this.font});
 		this.texts.center.x = Math.round((this.width - this.texts.center.width) / 2);
 		this.texts.center.y = Math.round((this.height - this.texts.center.height) / 2) - 15;
 		this.app.stage.addChildAt(this.texts.center, 0);
@@ -260,7 +262,7 @@ export default class Game {
 
 	updateScore() {
 		if (!this.texts.score) {
-			this.texts.score = new PIXI.extras.BitmapText(this.score.toString(), {font: this.font});
+			this.texts.score = new VectorText(this.score.toString(), {font: this.font});
 			this.texts.score.anchor = new PIXI.Point(1, 0);
 			this.texts.score.x = 785;
 			this.texts.score.y = 0;
@@ -375,7 +377,7 @@ export default class Game {
 
 	updateLives() {
 		if (!this.texts.lives) {
-			this.texts.lives = new PIXI.extras.BitmapText(this.lives.toString(), {font: this.font});
+			this.texts.lives = new VectorText(this.lives.toString(), {font: this.font});
 			this.texts.lives.anchor = new PIXI.Point(1, 0);
 			this.texts.lives.x = 33;
 			this.texts.lives.y = 0;
@@ -450,46 +452,84 @@ export default class Game {
 	}
 
 	init() {
-		var loader = new PIXI.loaders.Loader();
-		loader.add('hyperspace', 'hyperspace.fnt');
-		loader.load(function() {
-			this.app = new PIXI.Application(this.width, this.height);
-			document.body.appendChild(this.app.view);
+		this.app = new PIXI.Application(this.width, this.height, {
+			backgroundColor: 0x000000,
+			autoResize: true
+		});
+		document.body.appendChild(this.app.view);
+		this.updateDimensions();
 
-			this.ship = new Ship(this.width / 2, this.height / 2, 0);
-			this.app.stage.addChild(this.ship.getGraphics());
-			this.app.stage.addChild(this.ship.afterburner.getGraphics());
+		this.ship = new Ship(this.width / 2, this.height / 2, 0);
+		this.app.stage.addChild(this.ship.getGraphics());
+		this.app.stage.addChild(this.ship.afterburner.getGraphics());
 
-			this.mainScreen(true);
+		this.mainScreen(true);
 
-			this.updateScore();
-			this.app.stage.addChildAt(this.texts.score, 0);
+		this.updateScore();
+		this.app.stage.addChildAt(this.texts.score, 0);
 
-			this.updateLives()
-			this.app.stage.addChildAt(this.texts.lives, 0);
+		this.updateLives();
+		this.app.stage.addChildAt(this.texts.lives, 0);
 
-			this.bullets = [];
+		this.bullets = [];
 
-			var pixel = new PIXI.Graphics();
-			pixel.lineStyle(1, 0xffffff, 1);
-			pixel.moveTo(0,1);
-			pixel.lineTo(0,0);
+		var pixel = new PIXI.Graphics();
+		pixel.lineStyle(1, 0xffffff, 1);
+		pixel.moveTo(0,1);
+		pixel.lineTo(0,0);
 
-			this.emitter = new PIXI.particles.Emitter(
-				this.app.stage,
-				[pixel.generateCanvasTexture()],
-				this.emitterConfig
-			);
-			this.emitter.emit = false;
+		this.emitter = new PIXI.particles.Emitter(
+			this.app.stage,
+			[pixel.generateCanvasTexture()],
+			this.emitterConfig
+		);
+		if (this.emitter.startScale) {
+			this.emitter.startScale.value = 1 / this.scale;
+		}
+		this.emitter.emit = false;
 
-			this.timeline = new Timeline();
+		this.timeline = new Timeline();
 
-			this.app.ticker.add(function(delta) {
-				this.gameLoop(delta);
-			}.bind(this));
-
-			document.addEventListener('keydown', this.onKeyDown.bind(this));
-			document.addEventListener('keyup', this.onKeyUp.bind(this));
+		this.app.ticker.add(function(delta) {
+			this.gameLoop(delta);
 		}.bind(this));
+
+		document.addEventListener('keydown', this.onKeyDown.bind(this));
+		document.addEventListener('keyup', this.onKeyUp.bind(this));
+		window.addEventListener('resize', this.onResize.bind(this));
+	}
+
+	onResize() {
+		this.updateDimensions();
+	}
+
+	updateDimensions() {
+		var baseWidth = 800;
+		var baseHeight = 600;
+		var windowWidth = window.innerWidth || baseWidth;
+		var windowHeight = window.innerHeight || baseHeight;
+
+		var scale = Math.min(windowWidth / baseWidth, windowHeight / baseHeight);
+		this.scale = scale;
+
+		var canvasWidth = Math.floor(baseWidth * scale);
+		var canvasHeight = Math.floor(baseHeight * scale);
+
+		if (this.app) {
+			this.app.renderer.resize(canvasWidth, canvasHeight);
+			this.app.view.style.width = canvasWidth + 'px';
+			this.app.view.style.height = canvasHeight + 'px';
+			this.app.stage.scale.set(scale, scale);
+
+			if (this.emitter && this.emitter.startScale) {
+				this.emitter.startScale.value = 1 / scale;
+			}
+
+			if (this.bullets) {
+				this.bullets.forEach(function (bullet) {
+					bullet.setScale(scale);
+				});
+			}
+		}
 	}
 }

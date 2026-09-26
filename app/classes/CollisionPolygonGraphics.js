@@ -7,7 +7,7 @@ export default class CollisionPolygonGraphics {
 		pointsWithEndPoints.push(points[0]);
 		pointsWithEndPoints.push(points[1]);
 
-		this.graphics = new Graphics();
+		this.graphics = new Graphics(true);
 		this.graphics.lineStyle(1, 0xffffff, 1);
 		this.graphics.drawPolygon(pointsWithEndPoints);
 		this.graphics.x = x;

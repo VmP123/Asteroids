@@ -1,8 +1,8 @@
 import CollisionPointGraphics from './CollisionPointGraphics.js';
 
 export default class Bullet extends CollisionPointGraphics {
-	constructor (x, y, angle, distance) {
-		super(x, y);
+	constructor (x, y, angle, distance, scale = 1) {
+		super(x, y, scale);
 
 		this.x = x + Math.cos(angle + 0.5 * Math.PI) * (-distance);
 		this.y = y + Math.sin(angle + 0.5 * Math.PI) * (-distance);
