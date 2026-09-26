@@ -100,10 +100,22 @@ export default class Game {
 
 	createBigAsteroids(count) {
 		var asteroids = [];
+		var centerX = this.width / 2;
+		var centerY = this.height / 2;
+		var minDistance = 180;
 
 		for(var i = 0; i < count; i++) {
-			var x = Math.floor((Math.random() * 800));
-			var y = this.getRandomY(x);
+			var x, y, dist;
+			var attempts = 0;
+			do {
+				x = Math.floor(Math.random() * this.width);
+				y = this.getRandomY(x);
+				var dx = x - centerX;
+				var dy = y - centerY;
+				dist = Math.sqrt(dx * dx + dy * dy);
+				attempts++;
+			} while (dist < minDistance && attempts < 100);
+
 			var rotation = 2 * Math.PI * Math.random();
 			var speed = {x: (Math.random() * 4) - 2, y: (Math.random() * 4) - 2};
 			var type = ASTEROID_TYPE.BIG;
@@ -139,7 +151,36 @@ export default class Game {
 		return this.createAsteroidGroup(oa.x, oa.y, oa.rotation, 11, ASTEROID_TYPE.MIDDLE, 0.25 * Math.PI, 4);
 	}
 
+	isSpawnSafe() {
+		var spawnX = this.width / 2;
+		var spawnY = this.height / 2;
+		var safeDistance = 150;
+
+		for (var i = 0; i < this.asteroids.length; i++) {
+			var asteroid = this.asteroids[i];
+			var dx = asteroid.x - spawnX;
+			var dy = asteroid.y - spawnY;
+			if (dx * dx + dy * dy < safeDistance * safeDistance) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	tryRespawnShip() {
+		if (this.state !== STATES.DEAD || this.lives <= 0) {
+			return;
+		}
+
+		if (this.isSpawnSafe()) {
+			this.respawnShip();
+		} else {
+			this.timeline.add(new TimelineEvent(this.tryRespawnShip.bind(this), 10));
+		}
+	}
+
 	respawnShip() {
+		this.ship.stopAndHide();
 		this.ship.x = this.width / 2;
 		this.ship.y = this.height / 2;
 		this.ship.rotation = 0;
@@ -187,13 +228,12 @@ export default class Game {
 		this.updateLives();
 		this.removeTitleText();
 		this.removeAsteroids();
+		this.timeline = new Timeline();
 
-		var x = this.width / 2;
-		var y = this.height / 2;
-		var rotation = 0;
-		this.ship.x = x;
-		this.ship.y = y;
-		this.ship.rotation = rotation;
+		this.ship.stopAndHide();
+		this.ship.x = this.width / 2;
+		this.ship.y = this.height / 2;
+		this.ship.rotation = 0;
 
 		this.state = STATES.DEAD;
 
@@ -202,10 +242,15 @@ export default class Game {
 
 	levelCompleted() {
 		this.level++;
+		this.state = STATES.DEAD;
+		this.ship.stopAndHide();
 		this.timeline.add(new TimelineEvent(this.startLevel.bind(this), 120));
 	}
 
 	startLevel() {
+		this.state = STATES.DEAD;
+		this.ship.stopAndHide();
+
 		this.timeline.add(new TimelineEvent(
 			function () {
 				this.createCenterText('Level ' + this.level);
@@ -219,11 +264,8 @@ export default class Game {
 
 		this.timeline.add(new TimelineEvent(
 			function () {
-				this.removeCenterText()
-
-				// TODO: Tarkista, että asteroidit ovat tarpeeksi kaukana aluksesta
-				if (this.state != STATES.ALIVE)
-					this.respawnShip();
+				this.removeCenterText();
+				this.tryRespawnShip();
 			}.bind(this),
 			180
 		));
@@ -398,7 +440,7 @@ export default class Game {
 		this.explosion(this.ship.x, this.ship.y);
 
 		if (this.lives > 0) {
-			this.timeline.add(new TimelineEvent(this.respawnShip.bind(this), 120));
+			this.timeline.add(new TimelineEvent(this.tryRespawnShip.bind(this), 120));
 		}
 		else {
 			this.timeline.add(new TimelineEvent(this.gameOver.bind(this), 120));
