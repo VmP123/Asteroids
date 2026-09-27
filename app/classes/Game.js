@@ -18,6 +18,7 @@ export default class Game {
 		this.font = '48px Hyperspace';
 		this.lastBulletCreated = Date.now();
 		this.bulletDelay = 300;
+		this.pressedKeys = new Set();
 		this.timeline = new Timeline();
 		this.asteroids = [];
 		this.texts = {};
@@ -227,6 +228,7 @@ export default class Game {
 
 		this.ship.visible = true;
 		this.state = STATES.ALIVE;
+		this.updateShipControls();
 	}
 
 	tryCreateBullet() {
@@ -269,6 +271,7 @@ export default class Game {
 		this.removeTitleText();
 		this.removeAsteroids();
 		this.timeline = new Timeline();
+		this.clearKeys();
 
 		this.ship.stopAndHide();
 		this.ship.x = this.width / 2;
@@ -473,6 +476,7 @@ export default class Game {
 		this.state = STATES.DEAD;
 		this.lives--;
 		this.updateLives();
+		this.clearKeys();
 
 		this.ship.stopAndHide();
 
@@ -494,41 +498,60 @@ export default class Game {
 		));
 	}
 
-	onKeyDown(key) {
+	clearKeys() {
+		this.pressedKeys.clear();
+		if (this.ship) {
+			this.ship.acceleration = 0;
+			this.ship.rotationDirection = 0;
+		}
+	}
+
+	updateShipControls() {
+		if (!this.ship) {
+			return;
+		}
+
+		var thrust = this.pressedKeys.has('ArrowUp') || this.pressedKeys.has('KeyW');
+		this.ship.acceleration = thrust ? 0.055 : 0;
+
+		var left = this.pressedKeys.has('ArrowLeft') || this.pressedKeys.has('KeyA');
+		var right = this.pressedKeys.has('ArrowRight') || this.pressedKeys.has('KeyD');
+
+		if (left && !right) {
+			this.ship.rotationDirection = -1;
+		} else if (right && !left) {
+			this.ship.rotationDirection = 1;
+		} else {
+			this.ship.rotationDirection = 0;
+		}
+	}
+
+	onKeyDown(event) {
+		var code = event.code;
+
+		// Estetään selaimen sivunvieritys pelinäppäimiltä
+		if (code === 'Space' || code === 'ArrowUp' || code === 'ArrowDown' || code === 'ArrowLeft' || code === 'ArrowRight') {
+			event.preventDefault();
+		}
+
+		this.pressedKeys.add(code);
+
 		if (this.state == STATES.ALIVE) {
-			if (key.keyCode == 38) {
-				if (!this.ship.acceleration) {
-					this.ship.acceleration = 0.055;
-				}
-			}
-			else if (key.keyCode == 37) {
-				this.ship.rotationDirection = -1;
-			}
-			else if (key.keyCode == 39) {
-				this.ship.rotationDirection = 1;
-			}
-			else if (key.keyCode == 83) {
+			if (code === 'Space' || code === 'KeyS') {
 				this.tryCreateBullet();
 			}
-		}
-		else if (this.state == STATES.MAINSCREEN) {
-			if (key.keyCode == 83) {
+			this.updateShipControls();
+		} else if (this.state == STATES.MAINSCREEN) {
+			if (code === 'Space' || code === 'KeyS' || code === 'Enter') {
 				this.startGame();
 			}
 		}
 	}
 
-	onKeyUp(key) {
+	onKeyUp(event) {
+		this.pressedKeys.delete(event.code);
 		if (this.state == STATES.ALIVE) {
-			if (key.keyCode == 38) {
-				this.ship.acceleration = 0;
-			}
-			if (key.keyCode == 37 && this.ship.rotationDirection == -1) {
-				this.ship.rotationDirection = 0;
-			}
-			else if (key.keyCode == 39 && this.ship.rotationDirection == 1) {
-				this.ship.rotationDirection = 0;
-			}
+			this.updateShipControls();
 		}
 	}
 
@@ -580,6 +603,7 @@ export default class Game {
 
 		document.addEventListener('keydown', this.onKeyDown.bind(this));
 		document.addEventListener('keyup', this.onKeyUp.bind(this));
+		window.addEventListener('blur', this.clearKeys.bind(this));
 		window.addEventListener('resize', this.onResize.bind(this));
 	}
 
